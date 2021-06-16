@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>miniCloud</title>
+    <link rel="stylesheet" href="https://cdn.bootcss.com/element-ui/2.9.2/theme-chalk/index.css">
+</head>
+<body>
+<div id="app" v-loading="loading">
+
+    <h1>迷你云平台(V1.0-20210614)</h1>
+
+    <h2>虚拟机列表</h2>
+    <el-table :data="vmList" style="width: 100%">
+        <el-table-column prop="uuid" label="ID"></el-table-column>
+        <el-table-column prop="hostname" label="虚拟机名字"></el-table-column>
+        <el-table-column prop="ip" label="IP"></el-table-column>
+        <el-table-column prop="gateway" label="出口IP"></el-table-column>
+        <el-table-column prop="flavor" label="配置"></el-table-column>
+        <el-table-column prop="stage" label="状态"></el-table-column>
+    </el-table>
+
+    <h2>NAT列表</h2>
+    <el-table :data="natList" style="width: 100%">
+        <el-table-column prop="uuid" label="ID"></el-table-column>
+        <el-table-column prop="internet_ip" label="外网IP"></el-table-column>
+        <el-table-column prop="internal_ip" label="虚拟机IP"></el-table-column>
+        <el-table-column prop="external_port" label="外网端口"></el-table-column>
+        <el-table-column prop="internal_port" label="内网端口"></el-table-column>
+        <el-table-column prop="protocol" label="协议"></el-table-column>
+        <el-table-column prop="stage" label="状态"></el-table-column>
+    </el-table>
+
+    <h2>出口列表</h2>
+    <el-table :data="gatewayList" style="width: 100%">
+        <el-table-column prop="uuid" label="ID"></el-table-column>
+        <el-table-column prop="internet_ip" label="IP"></el-table-column>
+        <el-table-column prop="bandwidth" label="带宽(Mbps)"></el-table-column>
+        <el-table-column prop="description" label="描述"></el-table-column>
+    </el-table>
+
+    <h2>子网列表</h2>
+    <el-table :data="subnetList" style="width: 100%">
+        <el-table-column prop="uuid" label="ID"></el-table-column>
+        <el-table-column prop="cidr" label="CIDR"></el-table-column>
+    </el-table>
+
+    <h2>创建虚拟机</h2>
+    <el-form :inline="true" :model="formCreateInstance">
+        <el-form-item label="创建虚拟机"></el-form-item>
+        <el-form-item label="">
+            <el-input v-model="formCreateInstance.hostname" placeholder="虚拟机名字"></el-input>
+        </el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateInstance.system" placeholder="操作系统">
+                <el-option label="Ubuntu Server 21.04" value="debian10"></el-option>
+                <!--<el-option label="debian10" value="debian:10"></el-option>-->
+                <!--<el-option label="centos7" value="centos:7"></el-option>-->
+            </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateInstance.flavor" placeholder="虚拟机配置">
+                <el-option label="1核/1G" value="1C1G"></el-option>
+                <el-option label="1核/2G" value="1C2G"></el-option>
+                <el-option label="2核/4G" value="2C4G"></el-option>
+                <el-option label="4核/8G" value="4C8G"></el-option>
+                <el-option label="32核/64G" value="32C64G"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateInstance.az" placeholder="AZ(可用区)">
+                <el-option label="AZ-1" value="AZ-1"></el-option>
+                <el-option label="AZ-2" value="AZ-2"></el-option>
+                <!-- TODO: 通过API获取 -->
+            </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateInstance.subnet" placeholder="子网">
+                <el-option v-for="item in subnetList" :key="item.cidr" :label="item.cidr" :value="item.uuid"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateInstance.gateway" placeholder="出口IP">
+                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="primary" @click="createInstance">创建</el-button>
+        </el-form-item>
+    </el-form>
+
+
+    <h2>虚拟机管理</h2>
+    <el-form :inline="true" :model="formManageInstance">
+        <el-form-item label="虚拟机ID">
+            <el-input v-model="formManageInstance.vm_uuid" placeholder="虚拟机ID"></el-input>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="success" @click="optInstance('start')">开机</el-button>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="danger" @click="optInstance('shutdown')">关机</el-button>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="warning" @click="optInstance('reboot')">重启</el-button>
+        </el-form-item>
+        <el-form-item label="修改出口IP">
+            <el-select v-model="formManageInstance.gateway_internet_ip" placeholder="出口IP">
+                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="warning" @click="optInstance('setGateway')">确定修改</el-button>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="danger" @click="optInstance('delete')">删除虚拟机</el-button>
+        </el-form-item>
+    </el-form>
+
+    <h2>端口映射（NAT）管理</h2>
+    <el-form :inline="true" :model="formCreateNat">
+        <el-form-item label="创建端口映射（NAT）"></el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateNat.protocol" placeholder="协议">
+                <el-option label="TCP" value="tcp"></el-option>
+                <el-option label="UDP" value="udp"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateNat.internet_ip" placeholder="外网IP（出口IP）">
+                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateNat.internal_ip" placeholder="内网IP（虚拟机IP）">
+                <el-option v-for="item in vmList" :key="item.ip" :label="item.ip" :value="item.ip"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-input v-model="formCreateNat.external_port" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="外网端口"></el-input>
+        </el-form-item>
+        <el-form-item label="">
+            <el-input v-model="formCreateNat.internal_port" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="内网端口"></el-input>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="primary" @click="createNat">创建</el-button>
+        </el-form-item>
+    </el-form>
+    <el-form :inline="true" :model="formManageNat">
+        <el-form-item label="删除端口映射（NAT）"></el-form-item>
+        <el-form-item label="">
+            <el-input v-model="formManageNat.uuid" placeholder="NAT ID"></el-input>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="danger" @click="deleteNat">删除</el-button>
+        </el-form-item>
+    </el-form>
+
+    <h2>子网管理</h2>
+    <el-form :inline="true" :model="formCreateSubnet">
+        <el-form-item label="创建子网">
+            <el-input v-model="formCreateSubnet.mask" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="子网掩码长度，如24"></el-input>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="primary" @click="createSubnet">创建</el-button>
+        </el-form-item>
+    </el-form>
+    <el-form :inline="true" :model="formManageSubnet">
+        <el-form-item label="删除子网">
+            <el-input v-model="formManageSubnet.uuid" placeholder="子网 ID"></el-input>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="danger" @click="deleteSubnet">删除</el-button>
+        </el-form-item>
+    </el-form>
+
+    <h2>使用说明</h2>
+    <el-card>
+        <div class="text item">root密码：root@miniCloud</div>
+        <div class="text item">SSH端口：22。<strong>需要手动加一条NAT规则才能够从外网访问。</strong></div>
+        <div class="text item">整个云的私有网段范围为：192.168.20.0/22</div>
+        <div class="text item">AZ(Available Zone，可用区)：可以看成是一个机房或者一个集群。</div>
+        <div class="text item">注意：仅供学习、测试，<strong>随时倒闭，请勿保存重要数据。</strong>虚拟机创建后需要等待两分钟初始化后才能连上。</div>
+    </el-card>
+
+</div>
+</body>
+
+<script src="https://cdn.bootcss.com/vue/2.6.10/vue.min.js"></script><!-- import Vue before Element -->
+<script src="https://cdn.bootcss.com/element-ui/2.9.2/index.js"></script>
+<script src="https://cdn.bootcss.com/axios/0.19.0-beta.1/axios.min.js"></script>
+<script>
+new Vue({
+    el: '#app',
+    data: {
+        loading: false,
+        vmList: null,
+        gatewayList: null,
+        natList: null,
+        subnetList: null,
+        formCreateInstance: {
+            gateway: '',
+            hostname: '',
+            subnet: '',
+            system: '',
+            flavor: '',
+            az: ''
+        },
+        formManageInstance: {
+            vm_uuid: '',
+            gateway_internet_ip: '',
+        },
+        formCreateNat: {
+            internet_ip: '',
+            internal_ip: '',
+            external_port: '',
+            internal_port: '',
+            protocol: ''
+        },
+        formManageNat: {
+            uuid: '',
+        },
+        formCreateSubnet: {
+            mask: '',
+        },
+        formManageSubnet: {
+            uuid: '',
+        },
+    },
+    mounted: function() {
+        this.updateStatus();
+        this.timer = setInterval(this.updateStatus, 10000);
+    },
+    methods: {
+        updateStatus: function() {
+            var that = this;
+            axios.get('/api/vm').then(function(response) {
+                console.log(response);
+                that.vmList = response["data"];
+            }).
+            catch(function(error) {
+                console.log(error);
+            }) axios.get('/api/gateway').then(function(response) {
+                console.log(response);
+                that.gatewayList = response["data"];
+            }).
+            catch(function(error) {
+                console.log(error);
+            }) axios.get('/api/nat').then(function(response) {
+                console.log(response);
+                that.natList = response["data"];
+            }).
+            catch(function(error) {
+                console.log(error);
+            }) axios.get('/api/subnet').then(function(response) {
+                console.log(response);
+                that.subnetList = response["data"];
+            }).
+            catch(function(error) {
+                console.log(error);
+            })
+        },
+        createInstance() {
+            this.loading = true;
+            var that = this;
+            axios.post('/api/vm', that.formCreateInstance).then(function(response) {
+                console.log(response);
+                if (response['status'] != 201) alert(response['data']);
+                else alert("创建成功！");
+                that.updateStatus();
+            }).
+            catch(function(error) {
+                console.log(error);
+            }).
+            finally(function() {
+                that.loading = false;
+            })
+        },
+        optInstance(opt) {
+            this.loading = true;
+            var that = this;
+            if (opt == "delete") {
+                axios.delete('/api/vm/' + that.formManageInstance.vm_uuid).then(function(response) {
+                    console.log(response);
+                    if (response['status'] != 204) alert(response['data']);
+                    else alert("执行成功！");
+                    that.updateStatus();
+                }).
+                catch(function(error) {
+                    console.log(error);
+                }).
+                finally(function() {
+                    that.loading = false;
+                })
+            } else if (opt == "setGateway") {
+                axios.put('/api/route', that.formManageInstance).then(function(response) {
+                    console.log(response);
+                    if (response['data'] != "") alert(response['data']);
+                    else alert("执行成功！");
+                    that.updateStatus();
+                }).
+                catch(function(error) {
+                    console.log(error);
+                }).
+                finally(function() {
+                    that.loading = false;
+                })
+            } else if (opt == "start") {
+                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/start').then(function(response) {
+                    console.log(response);
+                    if (response['data'] != "") alert(response['data']);
+                    else alert("执行成功！");
+                    that.updateStatus();
+                }).
+                catch(function(error) {
+                    console.log(error);
+                }).
+                finally(function() {
+                    that.loading = false;
+                })
+            } else if (opt == "shutdown") {
+                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/shutdown').then(function(response) {
+                    console.log(response);
+                    if (response['data'] != "") alert(response['data']);
+                    else alert("执行成功！");
+                    that.updateStatus();
+                }).
+                catch(function(error) {
+                    console.log(error);
+                }).
+                finally(function() {
+                    that.loading = false;
+                })
+            } else if (opt == "reboot") {
+                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/reboot').then(function(response) {
+                    console.log(response);
+                    if (response['data'] != "") alert(response['data']);
+                    else alert("执行成功！");
+                    that.updateStatus();
+                }).
+                catch(function(error) {
+                    console.log(error);
+                }).
+                finally(function() {
+                    that.loading = false;
+                })
+            }
+        },
+        createNat() {
+            this.loading = true;
+            var that = this;
+            axios.post('/api/nat', that.formCreateNat).then(function(response) {
+                console.log(response);
+                if (response['status'] != 201) alert(response['data']);
+                else alert("创建成功！");
+                that.updateStatus();
+            }).
+            catch(function(error) {
+                console.log(error);
+                alert(error.response.data);
+            }).
+            finally(function() {
+                that.loading = false;
+            })
+        },
+        deleteNat() {
+            this.loading = true;
+            var that = this;
+            axios.delete('/api/nat/' + that.formManageNat.uuid).then(function(response) {
+                console.log(response);
+                if (response['status'] != 204) alert(response['data']);
+                else alert("执行成功！");
+                that.updateStatus();
+            }).
+            catch(function(error) {
+                console.log(error);
+            }).
+            finally(function() {
+                that.loading = false;
+            })
+        },
+        createSubnet() {
+            this.loading = true;
+            var that = this;
+            axios.post('/api/subnet', that.formCreateSubnet).then(function(response) {
+                console.log(response);
+                if (response['status'] != 201) alert(response['data']);
+                else alert("创建成功！");
+                that.updateStatus();
+            }).
+            catch(function(error) {
+                console.log(error);
+                alert(error.response.data);
+            }).
+            finally(function() {
+                that.loading = false;
+            })
+        },
+        deleteSubnet() {
+            this.loading = true;
+            var that = this;
+            axios.delete('/api/subnet/' + that.formManageSubnet.uuid).then(function(response) {
+                console.log(response);
+                if (response['status'] != 204) alert(response['data']);
+                else alert("执行成功！");
+                that.updateStatus();
+            }).
+            catch(function(error) {
+                console.log(error);
+            }).
+            finally(function() {
+                that.loading = false;
+            })
+        },
+    }
+})
+</script>
+</html>
