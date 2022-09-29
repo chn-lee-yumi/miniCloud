@@ -1,0 +1,8 @@
+# 初始化网桥，命令等价"ovs-vsctl add-br br0"
+- name: Add OVS bridge
+  become: true
+  become_user: root
+  become_method: sudo
+  openvswitch.openvswitch.openvswitch_bridge:
+    bridge: "{{ ovs_bridge }}"
+    state: present

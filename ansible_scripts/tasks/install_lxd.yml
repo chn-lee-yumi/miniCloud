@@ -1,0 +1,15 @@
+- name: Install snapd
+  become: true
+  become_user: root
+  become_method: sudo
+  ansible.builtin.apt:
+    name: snapd
+    update_cache: yes
+# 通过snap安装lxd
+- name: Install LXD
+  become: true
+  become_user: root
+  become_method: sudo
+  community.general.snap:
+    name:
+      - lxd

@@ -1,0 +1,53 @@
+config:
+  core.trust_password: "{{ cluster_password }}"
+  core.https_address: "{{ inventory_hostname }}:8443"
+  images.auto_update_interval: "0"
+{% if inventory_hostname == groups['management_node'][0] -%}
+profiles:
+  - config:
+      cloud-init.network-config: |
+        version: 1
+        config:
+          - type: physical
+            name: eth0
+            subnets:
+              - type: static
+                ipv4: true
+                address: 10.0.5.2
+                netmask: 255.255.255.0
+                gateway: 10.0.5.1
+                control: auto
+          - type: nameserver
+            address: 114.114.114.114
+      cloud-init.user-data: |
+        #cloud-config
+        users:
+          - name: yumi
+            ssh_authorized_keys:
+              - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC8FyT+xGDolRFTfAhZtA9XTds+EgzJaetfmBYtp+mxIiE3PUJnMUZs4o9IOM0J+biaaz56Oh1fV8QiZMbdLU9lLh5yvMI3Y7t9IIVvDewJXdafCRpbSjN91XeG5klmyNwANb+p8reQvUDewPiBUGobuMeG4Mh2Eu+vlZ5uSBPSarcfqR5INLi3zLWV8KHMsIuJgI1x9L5jrSNu47SeSuxOqsJto+Ck66t3/MlfTN/VGYhVrPek5LyhfkMMzWpy/QiCZ5A4Kvv1ZkTdahK783edX6vkG4vDD2wJwtsNiBscR1C5T6H/PxOTi7NOFV9MVMEU4v13x10p8kjCTEskm2n9 yumi
+            sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]
+            shell: /bin/bash
+    description: vm template
+    devices:
+      eth0:
+        host_name: veth1
+        mtu: "1400"
+        nictype: bridged
+        parent: br0
+        type: nic
+      root:
+        path: /
+        pool: local
+        type: disk
+    name: vm_template
+projects: []
+{% endif %}
+cluster:
+  server_name: "{{ inventory_hostname }}"
+  enabled: true
+  {% if inventory_hostname != groups['management_node'][0] -%}
+  cluster_address: "{{ groups['management_node'][0] }}:8443"
+  cluster_certificate: "{{ hostvars[groups['management_node'][0]].cluster_cert }}"
+  server_address: "{{ inventory_hostname }}:8443"
+  cluster_password: "{{ cluster_password }}"
+  {%- endif %}

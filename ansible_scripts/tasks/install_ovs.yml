@@ -1,0 +1,8 @@
+- name: Install OVS
+  become: true
+  become_user: root
+  become_method: sudo
+  ansible.builtin.apt:
+    pkg:
+      - openvswitch-common
+      - openvswitch-switch

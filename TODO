@@ -1,0 +1,23 @@
+增加Tenant功能-宿主部分（控制器/API未匹配）。其余操作的tenant权限管理（目前可以操作别的tenant的机器）
+LXD web terminal？
+多加个网桥来避免容器关机丢流表？增加路由表功能，不同目的地走不同网关？
+
+create whitelist hash:net family inet hashsize 1024 maxelem 1000000
+# dns
+add whitelist 114.114.114.114
+# mirror.nju.edu.cn
+add whitelist 210.28.130.3
+# mirrors.tuna.tsinghua.edu.cn
+add whitelist 101.6.15.130
+# mirrors.centos.org.
+add whitelist 13.212.21.54
+add whitelist 13.125.120.8
+add whitelist 13.233.183.170
+add whitelist 38.145.60.20
+add whitelist 38.145.60.21
+add whitelist 18.136.235.60
+# centos 8?
+add whitelist 85.236.43.108
+add whitelist 202.141.160.110
+add whitelist 39.155.141.16
+add whitelist 202.201.2.130

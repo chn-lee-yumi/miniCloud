@@ -1,0 +1,31 @@
+# 检查存储池是否已创建
+- name: Check if storage pool exists
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  register: has_storage_pool
+  ignore_errors: true
+  ansible.builtin.command:
+    cmd: lxc storage show local
+# 创建lxd存储池
+- name: Create storage pool
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  when: "has_storage_pool.rc != 0"
+  with_items: "{{groups.compute_node}}"
+  ansible.builtin.shell:
+    cmd: lxc storage create local btrfs source={{storage_pool_path}} --target {{item}}
+    # cmd: lxc storage create local dir --target {{item}}
+# 启用lxd存储池
+- name: Start storage pool
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  when: "has_storage_pool.rc != 0"
+  ansible.builtin.shell:
+    cmd: lxc storage create local btrfs source={{storage_pool_path}} --target {{inventory_hostname}} && lxc storage create local btrfs
+    # cmd: lxc storage create local dir --target {{inventory_hostname}} && lxc storage create local dir

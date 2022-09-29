@@ -1,0 +1,26 @@
+# 判断机器是否已经加入集群
+- name: Check if already in cluster
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  register: lxc_cluster
+  ignore_errors: true
+  ansible.builtin.command:
+    cmd: lxc cluster list
+# 复制lxd初始化配置
+- name: Copy LXD config
+  when: "lxc_cluster.rc != 0"
+  ansible.builtin.template:
+    src: configs/lxd_init.yml
+    dest: /home/cloud/lxd_init.yml
+    mode: 0644
+    owner: cloud
+# 导入lxd初始化配置
+- name: Import LXD init config
+  become: true
+  become_user: root
+  become_method: sudo
+  when: "lxc_cluster.rc != 0"
+  ansible.builtin.shell:
+    cmd: lxd init --preseed < /home/cloud/lxd_init.yml

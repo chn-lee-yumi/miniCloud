@@ -1,7 +1,10 @@
+import hashlib
 import logging
 import subprocess
 
 import IPy
+
+from config import PASSWORD_SALT
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -39,10 +42,6 @@ def calc_gateway_ip(subnet_cidr: str):
     return IPy.IP(IPy.IP(subnet_cidr).ip + 1).strNormal()
 
 
-# def get_tun_id(subnet_gateway: str):
-#     # TODO：优化一下防止冲突
-#     return "0x" + IPy.IP(subnet_gateway).strHex()[-6:]
-
 def get_tun_id(subnet_uuid: str):
     # TODO：优化一下防止冲突
     return "0x" + subnet_uuid[:6]
@@ -55,6 +54,21 @@ def int_to_mask(mask_int):
     mask = [''.join(bin_arr[i * 8:i * 8 + 8]) for i in range(4)]
     mask = [str(int(s, 2)) for s in mask]
     return '.'.join(mask)
+
+
+def sha1(string):
+    """
+    计算hash
+    :param string: 字符串
+    :return: 十六进制字符串
+    """
+    _hash = hashlib.sha1()
+    _hash.update(string.encode('utf8'))
+    return _hash.hexdigest()
+
+
+def password_hash(password):
+    return sha1(password + PASSWORD_SALT)
 
 
 if __name__ == '__main__':

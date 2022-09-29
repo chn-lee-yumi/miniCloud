@@ -1,0 +1,26 @@
+- name: Clean special node
+  hosts: special_node
+  tasks:
+    # 清理ovs
+    - include_tasks: tasks/clean_ovs.yml
+- name: Clean compute node
+  hosts: compute_node
+  tasks:
+    # 清理lxd
+    - include_tasks: tasks/clean_lxd.yml
+    # 清理ovs
+    - include_tasks: tasks/clean_ovs.yml
+- name: Clean network node
+  hosts: network_node
+  tasks:
+    # 清理网络节点
+    - include_tasks: tasks/clean_network_node.yml
+    # 清理ovs
+    - include_tasks: tasks/clean_ovs.yml
+- name: Clean management node
+  hosts: management_node
+  tasks:
+    # 清理云平台数据
+    - include_tasks: tasks/clean_cloud.yml
+    # 清理lxd
+    - include_tasks: tasks/clean_lxd.yml

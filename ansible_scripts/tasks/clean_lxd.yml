@@ -1,0 +1,33 @@
+# 删除LXD配置
+- name: Delete LXD config
+  file:
+    path: /home/cloud/lxd_init.yml
+    state: absent
+# 卸载LXD
+- name: Remove LXD
+  become: true
+  become_user: root
+  become_method: sudo
+  # 不用snap模块因为不能--purge，会很慢
+  #  community.general.snap:
+  #    name:
+  #      - lxd
+  #    state: absent
+  changed_when: false
+  ansible.builtin.command: snap remove lxd --purge
+# 删除btrfs存储卷
+- name: Delete LXD volumes
+  become: true
+  become_user: root
+  become_method: sudo
+  ignore_errors: true
+  ansible.builtin.shell:
+    cmd: for vol in `btrfs subvolume list {{ storage_pool_path }} | awk '{line[NR]=$0}END{i=NR;while(i>1){print line[i];i=i-1}}' | awk '{print $NF}'`;do btrfs subvolume delete {{ storage_pool_path }}/$vol;done;btrfs subvolume sync {{ storage_pool_path }}
+# 删除LXD存储
+- name: Delete LXD stroage
+  become: true
+  become_user: root
+  become_method: sudo
+  file:
+    path: "{{ storage_pool_path }}"
+    state: absent

@@ -1,0 +1,37 @@
+# 网络节点需要执行命令：iptables -t nat -A POSTROUTING -s 192.168.20.0/22 -o eth0 -j SNAT --to-source 10.0.8.12
+# 这里的192.168.20.0/22为云网段范围，10.0.8.12为网络节点的ip。
+- name: Add SNAT
+  become: true
+  become_user: root
+  become_method: sudo
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: "{{ cloud_cidr }}"
+    out_interface: "{{ nat_interface }}"
+    jump: SNAT
+    to_source: "{{ nat_ip }}"
+    comment: cloud snat rule
+# 如果br0没起来，则起来，等价命令ip link set br0 up
+- name: Show OVS bridge
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  register: ovs_bridge_status
+  ansible.builtin.command: ip link show {{ ovs_bridge }} up
+- name: Setup OVS bridge
+  become: true
+  become_user: root
+  become_method: sudo
+  when: "ovs_bridge_status.stdout == ''"
+  ansible.builtin.command: ip link set {{ ovs_bridge }} up
+# 开启ip_forward
+- name: Set net.ipv4.ip_forward=1
+  become: true
+  become_user: root
+  become_method: sudo
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes

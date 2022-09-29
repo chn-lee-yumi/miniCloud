@@ -1,0 +1,17 @@
+- name: Delete SNAT
+  become: true
+  become_user: root
+  become_method: sudo
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: "{{ cloud_cidr }}"
+    out_interface: "{{ nat_interface }}"
+    jump: SNAT
+    to_source: "{{ nat_ip }}"
+    comment: cloud snat rule
+    state: absent
+# iptables -t nat -A POSTROUTING -s 10.0.5.0/24 -mset --match-set whitelist dst -o enp6s0 -j SNAT --to-source 10.0.0.104
+# ipset create whitelist hash:net maxelem 1000000
+# ipset add whitelist 114.114.114.114
+# ipset add whitelist 210.28.130.3

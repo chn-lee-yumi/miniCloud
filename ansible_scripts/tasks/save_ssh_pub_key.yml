@@ -1,0 +1,5 @@
+# 保存SSH公钥
+- name: Save SSH pub key
+  ansible.builtin.blockinfile:
+    path: /home/cloud/.ssh/authorized_keys
+    block: "{{ hostvars[groups['management_node'][0]].ssh_pub_key }}"

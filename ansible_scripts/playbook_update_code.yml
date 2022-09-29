@@ -1,0 +1,10 @@
+- name: Clean management node
+  hosts: management_node
+  tasks:
+    # 清理云平台数据
+    - include_tasks: tasks/clean_cloud.yml
+- name: Init cloud
+  hosts: management_node
+  tasks:
+    # 初始化数据库和机器
+    - include_tasks: tasks/init_cloud.yml

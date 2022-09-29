@@ -8,15 +8,53 @@
 <body>
 <div id="app" v-loading="loading">
 
-    <h1>迷你云平台(V1.0-20210614)</h1>
+    <h1>迷你云平台(V2.0-20220929)【仅供娱乐，还在开发，随时删库】</h1>
+
+    <h2>使用说明</h2>
+    <el-card>
+        <div class="text item">SSH端口：22。<strong>需要手动加一条NAT规则才能够从外网访问。</strong></div>
+        <div class="text item">出于安全考虑，外网仅放通dns和镜像站。但是不影响外网其他机器访问虚拟机的NAT端口。</div>
+        <div class="text item">出于安全考虑，虚拟机仅支持公钥登录，不支持密码登录，请提前准备好公私钥对。</div>
+        <div class="text item">AZ(Available Zone，可用区)：可以看成是一个机房或者一个集群。</div>
+        <div class="text item">注意：仅供学习、测试，<strong>随时倒闭，请勿保存重要数据。</strong></div>
+    </el-card>
+
+    <h2>用户信息</h2>
+    <el-card :data="userInfo">
+        <div class="text item"><strong>用户名: </strong>{{ userInfo.name }}
+            <el-tag type="info" size="small" v-if="userInfo.is_admin">管理员</el-tag>
+        </div>
+        <div class="text item"><strong>当前Tenant: </strong>
+            <el-select size="small" v-model="userInfo.current_tenant" @change="changeTenant">
+                <el-option v-for="tenant in userInfo.tenants" :value="tenant"></el-option>
+            </el-select>
+        </div>
+        <div class="text item"><strong>
+            <el-link type="warning" href="/logout">Click here to logout. (退出登录)</el-link>
+        </strong></div>
+    </el-card>
+
+    <h2>可用资源</h2>
+    <el-table :data="resources" style="width: 100%">
+        <el-table-column prop="az" label="可用区"></el-table-column>
+        <el-table-column prop="flavor" label="规格"></el-table-column>
+        <el-table-column prop="arch" label="CPU架构"></el-table-column>
+        <el-table-column prop="performance" label="单核性能参考（越大越好）"></el-table-column>
+        <el-table-column prop="cpu" label="CPU核心数"></el-table-column>
+        <el-table-column prop="mem" label="内存大小（MB）"></el-table-column>
+        <el-table-column prop="remain" label="可创建实例数量"></el-table-column>
+    </el-table>
 
     <h2>虚拟机列表</h2>
     <el-table :data="vmList" style="width: 100%">
         <el-table-column prop="uuid" label="ID"></el-table-column>
-        <el-table-column prop="hostname" label="虚拟机名字"></el-table-column>
+        <el-table-column prop="instance_name" label="虚拟机名字"></el-table-column>
         <el-table-column prop="ip" label="IP"></el-table-column>
         <el-table-column prop="gateway" label="出口IP"></el-table-column>
-        <el-table-column prop="flavor" label="配置"></el-table-column>
+        <el-table-column prop="flavor" label="规格"></el-table-column>
+        <el-table-column prop="os" label="操作系统"></el-table-column>
+        <el-table-column prop="az" label="所在可用区"></el-table-column>
+        <el-table-column prop="create_user" label="创建用户"></el-table-column>
         <el-table-column prop="stage" label="状态"></el-table-column>
     </el-table>
 
@@ -28,6 +66,7 @@
         <el-table-column prop="external_port" label="外网端口"></el-table-column>
         <el-table-column prop="internal_port" label="内网端口"></el-table-column>
         <el-table-column prop="protocol" label="协议"></el-table-column>
+        <el-table-column prop="create_user" label="创建用户"></el-table-column>
         <el-table-column prop="stage" label="状态"></el-table-column>
     </el-table>
 
@@ -49,29 +88,21 @@
     <el-form :inline="true" :model="formCreateInstance">
         <el-form-item label="创建虚拟机"></el-form-item>
         <el-form-item label="">
-            <el-input v-model="formCreateInstance.hostname" placeholder="虚拟机名字"></el-input>
+            <el-input v-model="formCreateInstance.instance_name" placeholder="虚拟机名字"></el-input>
         </el-form-item>
         <el-form-item label="">
-            <el-select v-model="formCreateInstance.system" placeholder="操作系统">
-                <el-option label="Ubuntu Server 21.04" value="debian10"></el-option>
-                <!--<el-option label="debian10" value="debian:10"></el-option>-->
-                <!--<el-option label="centos7" value="centos:7"></el-option>-->
-            </el-select>
-        </el-form-item>
-        <el-form-item label="">
-            <el-select v-model="formCreateInstance.flavor" placeholder="虚拟机配置">
-                <el-option label="1核/1G" value="1C1G"></el-option>
-                <el-option label="1核/2G" value="1C2G"></el-option>
-                <el-option label="2核/4G" value="2C4G"></el-option>
-                <el-option label="4核/8G" value="4C8G"></el-option>
-                <el-option label="32核/64G" value="32C64G"></el-option>
+            <el-select v-model="formCreateInstance.os" placeholder="操作系统">
+                <el-option v-for="os in osList" :value="os"></el-option>
             </el-select>
         </el-form-item>
         <el-form-item label="">
             <el-select v-model="formCreateInstance.az" placeholder="AZ(可用区)">
-                <el-option label="AZ-1" value="AZ-1"></el-option>
-                <el-option label="AZ-2" value="AZ-2"></el-option>
-                <!-- TODO: 通过API获取 -->
+                <el-option v-for="az in azList" :value="az"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-select v-model="formCreateInstance.flavor" placeholder="虚拟机配置">
+                <el-option v-for="flavor in flavorList" :value="flavor"></el-option>
             </el-select>
         </el-form-item>
         <el-form-item label="">
@@ -83,6 +114,12 @@
             <el-select v-model="formCreateInstance.gateway" placeholder="出口IP">
                 <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
             </el-select>
+        </el-form-item>
+        <el-form-item label="">
+            <el-input v-model="formCreateInstance.username" placeholder="用户名"></el-input>
+        </el-form-item>
+        <el-form-item label="">
+            <el-input style="width:500px" v-model="formCreateInstance.pubkey" placeholder="登录公钥：请输入ssh-rsa开头的公钥，如ssh-rsa AAAAB3NzaC1..."></el-input>
         </el-form-item>
         <el-form-item>
             <el-button type="primary" @click="createInstance">创建</el-button>
@@ -101,17 +138,17 @@
         <el-form-item>
             <el-button type="danger" @click="optInstance('shutdown')">关机</el-button>
         </el-form-item>
-        <el-form-item>
-            <el-button type="warning" @click="optInstance('reboot')">重启</el-button>
-        </el-form-item>
-        <el-form-item label="修改出口IP">
-            <el-select v-model="formManageInstance.gateway_internet_ip" placeholder="出口IP">
-                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
-            </el-select>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="warning" @click="optInstance('setGateway')">确定修改</el-button>
-        </el-form-item>
+        <!--        <el-form-item>-->
+        <!--            <el-button type="warning" @click="optInstance('reboot')">重启</el-button>-->
+        <!--        </el-form-item>-->
+        <!--        <el-form-item label="修改出口IP">-->
+        <!--            <el-select v-model="formManageInstance.gateway_internet_ip" placeholder="出口IP">-->
+        <!--                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>-->
+        <!--            </el-select>-->
+        <!--        </el-form-item>-->
+        <!--        <el-form-item>-->
+        <!--            <el-button type="warning" @click="optInstance('setGateway')">确定修改</el-button>-->
+        <!--        </el-form-item>-->
         <el-form-item>
             <el-button type="danger" @click="optInstance('delete')">删除虚拟机</el-button>
         </el-form-item>
@@ -174,15 +211,6 @@
         </el-form-item>
     </el-form>
 
-    <h2>使用说明</h2>
-    <el-card>
-        <div class="text item">root密码：root@miniCloud</div>
-        <div class="text item">SSH端口：22。<strong>需要手动加一条NAT规则才能够从外网访问。</strong></div>
-        <div class="text item">整个云的私有网段范围为：192.168.20.0/22</div>
-        <div class="text item">AZ(Available Zone，可用区)：可以看成是一个机房或者一个集群。</div>
-        <div class="text item">注意：仅供学习、测试，<strong>随时倒闭，请勿保存重要数据。</strong>虚拟机创建后需要等待两分钟初始化后才能连上。</div>
-    </el-card>
-
 </div>
 </body>
 
@@ -194,15 +222,20 @@ new Vue({
     el: '#app',
     data: {
         loading: false,
+        userInfo: {name: '', is_admin: false, current_tenant: '', tenants: []},
+        resources: null,
+        azList: null,
+        flavorList: null,
+        osList: null,
         vmList: null,
         gatewayList: null,
         natList: null,
         subnetList: null,
         formCreateInstance: {
             gateway: '',
-            hostname: '',
+            instance_name: '',
             subnet: '',
-            system: '',
+            os: '',
             flavor: '',
             az: ''
         },
@@ -228,31 +261,52 @@ new Vue({
         },
     },
     mounted: function() {
+        var that = this;
         this.updateStatus();
         this.timer = setInterval(this.updateStatus, 10000);
     },
     methods: {
         updateStatus: function() {
             var that = this;
+            axios.get('/api/user_info').then(function(response) {
+                console.log(response);
+                that.userInfo = response["data"];
+            }).
+            catch(function(error) {
+                console.log(error);
+            });
+            axios.get('/api/resources').then(function(response) {
+                console.log(response);
+                that.resources = response["data"]["resources"];
+                that.azList = response["data"]["az_list"];
+                that.flavorList = response["data"]["flavor_list"];
+                that.osList = response["data"]["os_list"];
+            }).
+            catch(function(error) {
+                console.log(error);
+            });
             axios.get('/api/vm').then(function(response) {
                 console.log(response);
                 that.vmList = response["data"];
             }).
             catch(function(error) {
                 console.log(error);
-            }) axios.get('/api/gateway').then(function(response) {
+            })
+            axios.get('/api/gateway').then(function(response) {
                 console.log(response);
                 that.gatewayList = response["data"];
             }).
             catch(function(error) {
                 console.log(error);
-            }) axios.get('/api/nat').then(function(response) {
+            })
+            axios.get('/api/nat').then(function(response) {
                 console.log(response);
                 that.natList = response["data"];
             }).
             catch(function(error) {
                 console.log(error);
-            }) axios.get('/api/subnet').then(function(response) {
+            })
+            axios.get('/api/subnet').then(function(response) {
                 console.log(response);
                 that.subnetList = response["data"];
             }).
@@ -260,9 +314,25 @@ new Vue({
                 console.log(error);
             })
         },
+        changeTenant() {
+            this.loading = true;
+            var that = this;
+            axios.post('/api/change_tenant', {tenant: that.userInfo.current_tenant}).then(function(response) {
+                console.log(response);
+                that.updateStatus();
+            }).
+            catch(function(error) {
+                console.log(error);
+                alert(error.response.data);
+            }).
+            finally(function() {
+                that.loading = false;
+            })
+        },
         createInstance() {
             this.loading = true;
             var that = this;
+            alert("点击确定开始创建，大约需要两分钟，请耐心等候。如果卡了很久或创建失败，可以刷新页面，删掉虚拟机重试。虚拟机创建成功后需要两分钟初始化，之后才能通过SSH连上。");
             axios.post('/api/vm', that.formCreateInstance).then(function(response) {
                 console.log(response);
                 if (response['status'] != 201) alert(response['data']);
@@ -271,6 +341,7 @@ new Vue({
             }).
             catch(function(error) {
                 console.log(error);
+                alert(error.response['data']);
             }).
             finally(function() {
                 that.loading = false;
@@ -288,6 +359,7 @@ new Vue({
                 }).
                 catch(function(error) {
                     console.log(error);
+                    alert(error.response['data']);
                 }).
                 finally(function() {
                     that.loading = false;
@@ -301,6 +373,7 @@ new Vue({
                 }).
                 catch(function(error) {
                     console.log(error);
+                    alert(error.response['data']);
                 }).
                 finally(function() {
                     that.loading = false;
@@ -314,6 +387,7 @@ new Vue({
                 }).
                 catch(function(error) {
                     console.log(error);
+                    alert(error.response['data']);
                 }).
                 finally(function() {
                     that.loading = false;
@@ -327,6 +401,7 @@ new Vue({
                 }).
                 catch(function(error) {
                     console.log(error);
+                    alert(error.response['data']);
                 }).
                 finally(function() {
                     that.loading = false;
@@ -340,6 +415,7 @@ new Vue({
                 }).
                 catch(function(error) {
                     console.log(error);
+                    alert(error.response['data']);
                 }).
                 finally(function() {
                     that.loading = false;
@@ -374,6 +450,7 @@ new Vue({
             }).
             catch(function(error) {
                 console.log(error);
+                alert(error.response['data']);
             }).
             finally(function() {
                 that.loading = false;
@@ -407,6 +484,7 @@ new Vue({
             }).
             catch(function(error) {
                 console.log(error);
+                alert(error.response['data']);
             }).
             finally(function() {
                 that.loading = false;
@@ -414,5 +492,10 @@ new Vue({
         },
     }
 })
+
+
+
+
+
 </script>
 </html>

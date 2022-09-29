@@ -1,0 +1,65 @@
+# 初始化ssh私钥
+- name: Create SSH key
+  changed_when: false
+  ansible.builtin.shell:
+    cmd: if [ ! -f /home/cloud/.ssh/id_rsa ]; then ssh-keygen -f /home/cloud/.ssh/id_rsa -P ''; fi
+# 获取ssh公钥
+- name: Get SSH pub key
+  changed_when: false
+  register: ssh_pub_key
+  ansible.builtin.command:
+    cmd: cat /home/cloud/.ssh/id_rsa.pub
+# 保存ssh公钥
+- name: Save SSH pub key into ansible fact
+  ansible.builtin.set_fact:
+    ssh_pub_key: "{{ ssh_pub_key.stdout }}"
+# 判断机器是否已经加入集群
+- name: Check if already in cluster
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  register: lxc_cluster
+  ignore_errors: true
+  ansible.builtin.command:
+    cmd: lxc cluster list
+# 复制lxd初始化配置
+- name: Copy LXD config
+  # when: "lxc_cluster.rc != 0"
+  ansible.builtin.template:
+    src: configs/lxd_init.yml
+    dest: /home/cloud/lxd_init.yml
+    mode: 0644
+    owner: cloud
+# 导入lxd初始化配置
+- name: Import LXD init config
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  # when: "lxc_cluster.rc != 0"
+  ansible.builtin.shell:
+    cmd: lxd init --preseed < /home/cloud/lxd_init.yml
+# 如果没有导入清华镜像，则先导入
+- name: Import LXD mirror
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  ansible.builtin.shell:
+    cmd: lxc remote list | grep 'tuna-images' || lxc remote add tuna-images https://mirrors.tuna.tsinghua.edu.cn/lxc-images/ --protocol=simplestreams --public
+# 获取证书
+- name: Get LXD cluster cert
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  when: "lxc_cluster.rc != 0"
+  register: cluster_cert
+  ansible.builtin.shell:
+    cmd: sed ':a;N;$!ba;s/\n/\n\n/g' /var/snap/lxd/common/lxd/cluster.crt
+# 保存证书变量
+- name: Save cluster cert into ansible fact
+  when: "lxc_cluster.rc != 0"
+  ansible.builtin.set_fact:
+    cluster_cert: "{{ cluster_cert.stdout }}"

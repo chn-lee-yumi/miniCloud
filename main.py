@@ -1,20 +1,75 @@
+import copy
 import json
 
-from flask import Flask, request, jsonify, session, redirect, url_for
+from flask import Flask, session, redirect, url_for, request, jsonify
+from sqlalchemy import or_
 
-from controller import *
+from config import *
+from controller import create_vm, delete_vm, start_vm, shutdown_vm, create_nat, delete_nat, create_subnet, delete_subnet
+from database import *
+from utils import *
 
 app = Flask(__name__)
 app.secret_key = b'_5#y212\rfaL"F4aQ8asdfn\xec]/'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///miniCloud2.db'
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
+db.init_app(app)
 
-reg_vm_list = []  # vm初始化成功的标记
 
-reboot_script = """
-reboot
-"""
+def dict_to_list(data: dict, attr: str):
+    return list(map(lambda i: i[attr], data))
 
-username = "admin"
-password = "admin@miniCloud"
+
+def get_list(obj):
+    """
+    获取对象列表
+    :param obj: 对象名字（可以是列表）
+    :return: 对象属性字典的列表
+    """
+
+    def _get_list(_obj):
+        _list = []
+        _all = db.session.query(_obj).filter(or_(obj.tenant == session['tenant'], obj.tenant == "ALL")).all()
+        for _item in _all:
+            _dict = copy.copy(_item.__dict__)
+            for _key in list(_item.__dict__.keys()):
+                if _key.startswith("_"):
+                    del _dict[_key]  # 删除内部属性
+            _list.append(_dict)
+        return _list
+
+    if type(obj) == list:
+        result_list = []
+        for o in obj:
+            result_list.extend(_get_list(o))
+    else:
+        result_list = _get_list(obj)
+    return result_list
+
+
+# def get_list_raw(obj):
+#     """
+#         获取对象列表
+#         :param obj: 对象名字（可以是列表）
+#         :return: 对象列表
+#     """
+#
+#     def _get_list(_obj):
+#         return db.session.query(_obj).all()
+#
+#     if type(obj) == list:
+#         result_list = []
+#         for o in obj:
+#             result_list.extend(_get_list(o))
+#     else:
+#         result_list = _get_list(obj)
+#     return result_list
+
+
+def init():
+    """初始化数据库"""
+    with app.app_context():
+        db.create_all()
 
 
 @app.route('/')
@@ -27,9 +82,22 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.form['username'] == username and request.form['password'] == password:
+        user = db.session.query(User).filter_by(name=request.form['username']).first()
+        if not user:  # 用户不存在
+            return "用户不存在"
+        password = password_hash(request.form['password'])
+        if user.password == password:
             session['username'] = request.form['username']
+            if user.tenant == "ALL":
+                # 如果有所有tenant的权限，默认取所有tenant的第一个进行显示
+                tenant = db.session.query(Tenant).first().name
+            else:
+                # 如果有多个tenant权限，取第一个进行显示
+                tenant = user.tenant.split(',')[0]
+            session['tenant'] = tenant
             return redirect(url_for('index'))
+        else:
+            return "密码错误"
     return app.send_static_file("login.html")
 
 
@@ -40,15 +108,69 @@ def logout():
     return redirect(url_for('index'))
 
 
+@app.route('/api/user_info')
+def api_user_info():
+    # 返回当前用户信息
+    user = db.session.query(User).filter_by(name=session['username']).first()
+    if not user:
+        return "", 200
+    if user.tenant == "ALL":
+        tenants = dict_to_list(db.session.query(Tenant).with_entities(Tenant.name).all(), "name")
+    else:
+        tenants = user.tenant.split(",")
+    return jsonify({"name": user.name, "is_admin": user.is_admin, "current_tenant": session['tenant'], "tenants": tenants})
+
+
+@app.route('/api/change_tenant', methods=['POST'])
+def api_change_tenant():
+    # 修改当前租户
+    args = request.get_json()
+    session['tenant'] = args['tenant']
+    return "", 200
+
+
+@app.route('/api/resources', methods=['GET'])
+def api_get_resources():
+    # 返回AZ列表和各AZ不同flavor可创建的机器数量
+    resource_list = []
+    az_list = sorted(dict_to_list(db.session.query(Host).with_entities(Host.az).distinct().all(), "az"))
+    flavor_list = list(FLAVORS.keys())
+    os_list = OS_LIST
+    for az in az_list:
+        for flavor in FLAVORS:
+            remain = 0  # 剩余可创建vm数量
+            hosts = db.session.query(Host).filter_by(az=az, arch=FLAVORS[flavor]["arch"], performance=FLAVORS[flavor]["performance"]).all()
+            for host in hosts:
+                cpu_available = host.cpu * host.cpu_alloc_ratio
+                mem_available = host.mem * host.mem_alloc_ratio
+                vm_list = db.session.query(VirtualMachine).filter_by(host=host.management_ip).with_entities(VirtualMachine.flavor).all()
+                for vm in vm_list:
+                    cpu_available -= FLAVORS[vm.flavor]["cpu"]
+                    mem_available -= FLAVORS[vm.flavor]["mem"]
+                remain += min(cpu_available // FLAVORS[flavor]["cpu"], mem_available // FLAVORS[flavor]["mem"])
+            if remain:
+                resource_list.append({"az": az, "flavor": flavor, "arch": FLAVORS[flavor]["arch"], "performance": FLAVORS[flavor]["performance"],
+                                      "cpu": FLAVORS[flavor]["cpu"], "mem": FLAVORS[flavor]["mem"], "remain": remain})
+    return jsonify({"resources": resource_list, "az_list": az_list, "flavor_list": flavor_list, "os_list": os_list})
+
+
 @app.route('/api/vm', methods=['GET'])
 def api_get_vm_list():
-    return jsonify(get_list(VirtualMachine))
+    vm_list = get_list(VirtualMachine)
+    for vm in vm_list:
+        vm["az"] = db.session.query(Host).filter_by(management_ip=vm["host"]).first().az
+    return jsonify(vm_list)
 
 
 @app.route('/api/vm', methods=['POST'])
 def api_create_vm():
-    param = json.loads(request.get_data(as_text=True))
-    msg = create_vm(param["subnet"], param["gateway"], param["flavor"], param["hostname"], param["az"])
+    param = request.get_json()
+    if not param["pubkey"].startswith("ssh-rsa "):
+        return "公钥需要以ssh-rsa 开头！", 400
+    msg = create_vm(
+        subnet_uuid=param["subnet"], gateway_internet_ip=param["gateway"], flavor=param["flavor"], os=param["os"],
+        instance_name=param["instance_name"], username=param["username"], pubkey=param["pubkey"], az=param["az"],
+        tenant=session["tenant"], create_user=session["username"])
     if msg:
         return msg, 500
     return "", 201
@@ -78,21 +200,12 @@ def api_shutdown_vm(vm_uuid):
     return "", 200
 
 
-@app.route('/api/vm/<vm_uuid>/reboot', methods=['GET'])
-def api_reboot_vm(vm_uuid):
-    msg = reboot_vm(vm_uuid)
-    if msg:
-        return msg, 500
-    return "", 200
-
-
-@app.route('/api/vm/script', methods=['GET'])
-def api_vm_script():
-    ip = request.remote_addr
-    if ip not in reg_vm_list:
-        reg_vm_list.append(ip)
-        return reboot_script
-    return ""
+# @app.route('/api/vm/<vm_uuid>/reboot', methods=['GET'])
+# def api_reboot_vm(vm_uuid):
+#     msg = reboot_vm(vm_uuid)
+#     if msg:
+#         return msg, 500
+#     return "", 200
 
 
 @app.route('/api/gateway', methods=['GET'])
@@ -109,9 +222,11 @@ def api_get_nat_list():
 def api_create_nat():
     param = json.loads(request.get_data(as_text=True))
     print(param)
-    if int(param["external_port"]) == 22 or int(param["external_port"]) == 80:
-        return "Not allowed to use port 22 and 80!", 403
-    msg = create_nat(param["internet_ip"], param["internal_ip"], int(param["external_port"]), int(param["internal_port"]), param["protocol"])
+    if int(param["external_port"]) < 9000 or int(param["external_port"]) > 9999:
+        return "端口号可用范围：9000-9999。请勿使用范围外的端口。", 403
+    msg = create_nat(internet_ip=param["internet_ip"], internal_ip=param["internal_ip"],
+                     external_port=int(param["external_port"]), internal_port=int(param["internal_port"]),
+                     protocol=param["protocol"], tenant=session["tenant"], create_user=session["username"])
     if msg:
         return msg, 500
     return "", 201
@@ -146,13 +261,14 @@ def api_delete_subnet(subnet_uuid):
     return "", 204
 
 
-@app.route('/api/route', methods=['PUT'])
-def api_modify_route():
-    param = json.loads(request.get_data(as_text=True))
-    if set_vm_gateway(param["vm_uuid"], param["gateway_internet_ip"]):
-        return "failed", 500
-    return "", 200
+# @app.route('/api/route', methods=['PUT'])
+# def api_modify_route():
+#     param = json.loads(request.get_data(as_text=True))
+#     if set_vm_gateway(param["vm_uuid"], param["gateway_internet_ip"]):
+#         return "failed", 500
+#     return "", 200
 
 
 if __name__ == '__main__':
+    init()
     app.run(port=5000, host="0.0.0.0")

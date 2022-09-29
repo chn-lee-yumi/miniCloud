@@ -1,0 +1,8 @@
+# 删除网桥，命令等价"ovs-vsctl del-br br0"
+- name: Delete OVS bridge
+  become: true
+  become_user: root
+  become_method: sudo
+  openvswitch.openvswitch.openvswitch_bridge:
+    bridge: "{{ ovs_bridge }}"
+    state: absent
