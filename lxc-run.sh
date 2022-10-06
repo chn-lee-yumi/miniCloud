@@ -102,8 +102,7 @@ fi
 
 lxc config set $name limits.cpu $core
 lxc config set $name limits.memory $mem
-# lxc config device set test1 root size=1GiB
-# lxc config device set test1 root limits.read=10MiB
+lxc config set $name security.nesting=true  # enable docker support
 
 # check if limits.cpu works https://github.com/lxc/lxd/issues/10997
 if [[ $core != $(lxc exec $name nproc) ]]; then
