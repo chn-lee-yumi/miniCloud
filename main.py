@@ -5,7 +5,7 @@ from flask import Flask, session, redirect, url_for, request, jsonify
 from sqlalchemy import or_
 
 from config import *
-from controller import create_vm, delete_vm, start_vm, shutdown_vm, create_nat, delete_nat, create_subnet, delete_subnet
+from controller import create_vm, delete_vm, start_vm, shutdown_vm, create_nat, delete_nat, create_subnet, delete_subnet, refresh_flow_table
 from database import *
 from utils import *
 
@@ -256,6 +256,15 @@ def api_create_subnet():
 @app.route('/api/subnet/<subnet_uuid>', methods=['DELETE'])
 def api_delete_subnet(subnet_uuid):
     msg = delete_subnet(subnet_uuid)
+    if msg:
+        return msg, 500
+    return "", 204
+
+
+@app.route('/api/refresh_flow_table/host/<ip>', methods=['POST'])
+def api_refresh_flow_table_host(ip):
+    host = db.session.query(Host).filter_by(management_ip=ip).first()
+    msg = refresh_flow_table(host.uuid, Host)
     if msg:
         return msg, 500
     return "", 204
