@@ -31,22 +31,27 @@ ubuntu_mirror="apt:
       uri: http://mirrors.tuna.tsinghua.edu.cn/ubuntu
 "
 
+ubuntu_ports_mirror="apt:
+  primary:
+    - arches: [default]
+      uri: http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports
+"
+
 debian_mirror="apt:
   primary:
     - arches: [default]
       uri: http://mirrors.tuna.tsinghua.edu.cn/debian
 "
 
-kali_mirror="apt:
-  primary:
-    - arches: [default]
-      uri: http://mirrors.tuna.tsinghua.edu.cn/kali
-"
-
 # TODO: centos
 
-if [[ $image =~ "ubuntu" ]]; then
+lxc info --target $target_node | grep architectures -A 1 | grep aarch
+is_not_aarch64=$?
+
+if [[ $image =~ "ubuntu" && $is_not_aarch64 == 1 ]]; then
   mirror_config=${ubuntu_mirror}
+elif [[ $image =~ "ubuntu" && $is_not_aarch64 == 0 ]]; then
+  mirror_config=${ubuntu_ports_mirror}
 elif [[ $image =~ "debian" ]]; then
   mirror_config=${debian_mirror}
 elif [[ $image =~ "kali" ]]; then
