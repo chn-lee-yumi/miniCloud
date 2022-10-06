@@ -8,13 +8,13 @@
 <body>
 <div id="app" v-loading="loading">
 
-    <h1>迷你云平台(V2.0-20220929)【仅供娱乐，还在开发，随时删库】</h1>
+    <h1>迷你云平台(V2.0.1-20221006)【仅供娱乐，还在开发，随时删库】</h1>
 
     <h2>使用说明</h2>
     <el-card>
         <div class="text item">SSH端口：22。<strong>需要手动加一条NAT规则才能够从外网访问。</strong></div>
         <div class="text item">出于安全考虑，外网仅放通dns和镜像站。但是不影响外网其他机器访问虚拟机的NAT端口。</div>
-        <div class="text item">出于安全考虑，虚拟机仅支持公钥登录，不支持密码登录，请提前准备好公私钥对。</div>
+        <div class="text item">出于安全考虑，虚拟机<strong>仅支持公钥登录，不支持密码登录</strong>，请提前准备好公私钥对。</div>
         <div class="text item">AZ(Available Zone，可用区)：可以看成是一个机房或者一个集群。</div>
         <div class="text item">注意：仅供学习、测试，<strong>随时倒闭，请勿保存重要数据。</strong></div>
     </el-card>
@@ -39,7 +39,7 @@
         <el-table-column prop="az" label="可用区"></el-table-column>
         <el-table-column prop="flavor" label="规格"></el-table-column>
         <el-table-column prop="arch" label="CPU架构"></el-table-column>
-        <el-table-column prop="performance" label="单核性能参考（越大越好）"></el-table-column>
+        <!--<el-table-column prop="performance" label="单核性能参考（越大越好）"></el-table-column>-->
         <el-table-column prop="cpu" label="CPU核心数"></el-table-column>
         <el-table-column prop="mem" label="内存大小（MB）"></el-table-column>
         <el-table-column prop="remain" label="可创建实例数量"></el-table-column>
@@ -492,6 +492,7 @@ new Vue({
         },
     }
 })
+
 
 
 

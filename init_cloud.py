@@ -6,7 +6,7 @@ import config
 from controller import *
 
 # 如果已经存在数据库，就跳过初始化
-if os.path.exists("miniCloud2.db"):
+if os.path.exists("miniCloud2.db") and os.path.exists("instance/miniCloud2.db"):
     print("集群已存在数据库，跳过初始化")
     exit()
 
@@ -30,7 +30,7 @@ with app.app_context():
         node = node_infos[node]
         print(add_gateway(node["inventory_hostname"], node["internet_ip"],
                           node["inventory_hostname"], node["inventory_hostname"],
-                          node["bandwidth"], node["description"]))
+                          node["bandwidth"], description=node["description"]))
     print("add_special_node")
     for node in config.special_nodes:
         node = node_infos[node]

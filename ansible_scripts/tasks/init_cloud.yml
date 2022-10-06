@@ -22,18 +22,18 @@
   with_items: "{{groups.all}}"
   ansible.builtin.shell:
     cmd: ssh {{ item }} -o 'StrictHostKeychecking=no' hostname
-# 复制项目代码
+# 复制项目代码 (copy is too slow, use synchronize instead)
 - name: Copy code
-  ansible.builtin.copy:
-    src: ../../miniCloud2
+  ansible.builtin.synchronize:
+    src: ../../miniCloud
     dest: /home/cloud/
-    mode: 0644
-    owner: cloud
+    rsync_opts:
+      - "--exclude=ansible_scripts"
 # 复制项目配置
 - name: Copy config
   ansible.builtin.template:
     src: configs/config.py
-    dest: /home/cloud/miniCloud2/config.py
+    dest: /home/cloud/miniCloud/config.py
     mode: 0644
     owner: cloud
 # 执行初始化
@@ -42,7 +42,7 @@
   register: result
   ansible.builtin.command:
     cmd: python3 init_cloud.py
-    chdir: /home/cloud/miniCloud2
+    chdir: /home/cloud/miniCloud
 # 查看初始化输出
 - name: Show init result
   debug: var=result verbosity=0

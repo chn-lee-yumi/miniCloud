@@ -1,0 +1,12 @@
+[Unit]
+Description=node_exporter service
+
+[Service]
+User=root
+ExecStart=/root/node_exporter
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

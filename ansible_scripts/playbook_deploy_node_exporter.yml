@@ -1,0 +1,49 @@
+# 部署node_exporter
+- name: Deploy node_exporter
+  hosts: all
+  tasks:
+    - name: Copy node_exporter (amd64)
+      become: true
+      become_user: root
+      become_method: sudo
+      when: "arch == 'x86'"
+      ansible.builtin.copy:
+        src: files/node_exporter_amd64
+        dest: /root/node_exporter
+        mode: 0755
+        owner: root
+    - name: Copy node_exporter (arm64)
+      become: true
+      become_user: root
+      become_method: sudo
+      when: "arch == 'arm' and performance == 1"
+      ansible.builtin.copy:
+        src: files/node_exporter_arm64
+        dest: /root/node_exporter
+        mode: 0755
+        owner: root
+    - name: Copy node_exporter (armv7)
+      become: true
+      become_user: root
+      become_method: sudo
+      when: "arch == 'arm' and performance == 0"
+      ansible.builtin.copy:
+        src: files/node_exporter_armv7
+        dest: /root/node_exporter
+        mode: 0755
+        owner: root
+    - name: Copy node_exporter.service
+      become: true
+      become_user: root
+      become_method: sudo
+      ansible.builtin.copy:
+        src: files/node_exporter.service
+        dest: /lib/systemd/system/node_exporter.service
+        mode: 0644
+        owner: root
+    - name: Start node_exporter
+      become: true
+      become_user: root
+      become_method: sudo
+      ansible.builtin.shell:
+        cmd: systemctl daemon-reload && systemctl enable node_exporter && systemctl start node_exporter

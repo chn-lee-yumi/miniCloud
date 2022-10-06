@@ -1,5 +1,5 @@
 # 删除代码
 - name: Delete code
   file:
-    path: /home/cloud/miniCloud2
+    path: /home/cloud/miniCloud
     state: absent

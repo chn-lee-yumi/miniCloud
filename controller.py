@@ -469,7 +469,7 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
     vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
     db.session.commit()
     # 创建虚拟机
-    code, _, _ = exec_cmd("""sudo bash ~/miniCloud2/lxc-run.sh %s %s %s %sMB %s %s %s %s %s '%s' %s""" % (
+    code, _, _ = exec_cmd("""sudo bash ~/miniCloud/lxc-run.sh %s %s %s %sMB %s %s %s %s %s '%s' %s""" % (
         instance_name, os, cpu, mem,
         vm_ip, IPy.IP(IPy.IP(subnet.cidr).int() + 1).strNormal(), str(IPy.IP(subnet.cidr).netmask()), vm_interface,
         username, pubkey, host_ip))
@@ -477,7 +477,7 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
         vm.stage += " ERROR"
         db.session.commit()
         return "创建虚拟机时报错"
-    _, stdout, _ = exec_cmd("""lxc config get %s volatile.eth0.hwaddr""" % instance_name)
+    _, stdout, _ = exec_cmd("""sudo lxc config get %s volatile.eth0.hwaddr""" % instance_name)
     vm.mac = stdout.strip()
     vm.stage = "adding flow"
     db.session.commit()
@@ -662,7 +662,7 @@ def start_vm(vm_uuid: str):
         vm.stage += " ERROR"
         db.session.commit()
         return 1
-    _, stdout, _ = exec_cmd("""lxc config get %s volatile.eth0.hwaddr""" % vm.instance_name)
+    _, stdout, _ = exec_cmd("""sudo lxc config get %s volatile.eth0.hwaddr""" % vm.instance_name)
     vm.mac = stdout.strip()
     vm.stage = "adding flow"
     vm.power = 0
@@ -968,12 +968,6 @@ def get_list_raw(obj):
 
 if __name__ == '__main__':
     """函数测试"""
-    """
-    gateway: 10.0.3.2
-    [router: 10.0.3.1 10.0.4.1]
-    switch: 10.0.4.2
-    host: 10.0.4.1
-    """
     from flask import Flask
 
     app = Flask(__name__)
@@ -982,46 +976,6 @@ if __name__ == '__main__':
     db.init_app(app)
     with app.app_context():
         db.create_all()
-        print(create_vpc(Cloud_CIDR))
-        print(add_gateway("10.0.3.2", "119.29.62.52", "10.0.3.2", "10.0.8.12", 5, "出口1"))
-        print(add_special_node("10.0.4.2", "10.0.4.2", "switch"))
-        print(add_host("10.0.4.1", "10.0.4.1", "AZ-1", 4, 1.5, 4096, 1.5))
-        print(create_subnet(26))
-
-        # print(delete_host("5a40c9d0-e277-5435-98ab-c0132b22d468"))
-        # print(delete_host("d63e7bbf-47aa-5f1d-b2e6-f7b152c8023f"))
-        # print(delete_special_node("f86dc9d0-01c9-56a6-bd47-ce6237ee2dd3"))
-        # print(delete_gateway("0a0711b9-30d6-5537-a014-634028b53e4b"))
-        # print(delete_gateway("14c41856-8367-5dce-ab33-2b42f1e0173e"))
-
-        # refresh_flow_table("5a40c9d0-e277-5435-98ab-c0132b22d468", Host)
-        # refresh_flow_table("d63e7bbf-47aa-5f1d-b2e6-f7b152c8023f", Host)
-        # refresh_flow_table("c28e7c68-46bc-5b86-8789-a64ae1edb74c", Host)
-        # refresh_flow_table("f86dc9d0-01c9-56a6-bd47-ce6237ee2dd3", SpecialNode)
-        print(refresh_flow_table("d209006b-12fb-5119-a201-54c591674950", Gateway))
-        # refresh_flow_table("14c41856-8367-5dce-ab33-2b42f1e0173e", Gateway)
-        # add_consistent_flow("192.168.10.2", "192.168.10.2", "192.168.20.2", "14:00:00:00:00:00", "a09bd8c4-cae7-5914-9011-a4b1c0ecd1ec")
-
-        # print(add_host("192.168.13.3", "192.168.13.3", "AZ-1", 32, 48))
-        # print(delete_host("4e981c56-3fff-539b-bb63-f975862a259c"))
-        # print(add_host("192.168.14.2", "192.168.14.2", "AZ-2", 128, 256))
-
-        # print(create_subnet(28))
-        # print(delete_subnet("493036d9-90e7-513e-a593-f02488d968c0"))
-        # print(delete_subnet("d6b72035-5a0c-5ef8-af39-8955e338185b"))
-
-        # print(get_list(VirtualMachine))
-        # print(get_list(Gateway))
-        # print(create_vm("0f02c76b-9a6d-55cc-8473-76758c16eb7e", "119.29.62.52", "1C1G", "test1", "yumi", "123456"))
-        # delete_vm("e7df3677-16b9-5f7f-9cd1-f7d9b035b52a")
-        # create_nat("119.29.62.52", "192.168.20.10", 10022, 22, "tcp") # TODO
-        # delete_nat("54b64d08-4cfa-5418-b12d-effbbd2ca5eb")
-        # set_vm_gateway("3a0db673-eb15-55af-a7ab-ce4604a1d2ab", "119.29.62.52")
-        # set_vm_gateway("3a0db673-eb15-55af-a7ab-ce4604a1d2ab", "139.9.62.22")
-
-        # print(delete_subnet("09d3695f-ab9f-5647-b10d-7e348f74c629"))
-
-    pass
 
 """
 流表追踪

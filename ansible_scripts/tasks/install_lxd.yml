@@ -1,7 +1,14 @@
+# 检查snapd是否已经安装
+- name: Check if snapd already installed
+  register: snap_result
+  ansible.builtin.stat:
+    path: /usr/bin/snap
+# 安装snapd (因为 /usr/bin/apt-mark manual snapd 很慢，所以前面先检查了一遍是否已经安装)
 - name: Install snapd
   become: true
   become_user: root
   become_method: sudo
+  when: not snap_result.stat.exists
   ansible.builtin.apt:
     name: snapd
     update_cache: yes

@@ -54,12 +54,10 @@
   become_user: root
   become_method: sudo
   changed_when: false
-  when: "lxc_cluster.rc != 0"
   register: cluster_cert
   ansible.builtin.shell:
     cmd: sed ':a;N;$!ba;s/\n/\n\n/g' /var/snap/lxd/common/lxd/cluster.crt
 # 保存证书变量
 - name: Save cluster cert into ansible fact
-  when: "lxc_cluster.rc != 0"
   ansible.builtin.set_fact:
     cluster_cert: "{{ cluster_cert.stdout }}"

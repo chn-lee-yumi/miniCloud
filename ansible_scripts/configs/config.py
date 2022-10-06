@@ -6,29 +6,23 @@ FLAVORS = {
     "a1.small": {
         "performance": 1,
         "cpu": 1,
-        "mem": 128,
-        "arch": "arm",
-    },
-    "a2.medium": {
-        "performance": 2,
-        "cpu": 1,
         "mem": 512,
         "arch": "arm"
     },
-    "a2.large": {
-        "performance": 2,
+    "a1.medium": {
+        "performance": 1,
         "cpu": 2,
         "mem": 1024,
         "arch": "arm"
     },
-    "x2.medium": {
-        "performance": 2,
+    "x1.small": {
+        "performance": 1,
         "cpu": 1,
         "mem": 512,
         "arch": "x86"
     },
-    "x2.large": {
-        "performance": 2,
+    "x1.medium": {
+        "performance": 1,
         "cpu": 2,
         "mem": 1024,
         "arch": "x86"
