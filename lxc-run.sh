@@ -103,19 +103,3 @@ fi
 lxc config set $name limits.cpu $core
 lxc config set $name limits.memory $mem
 lxc config set $name security.nesting=true  # enable docker support
-
-# check if limits.cpu works https://github.com/lxc/lxd/issues/10997
-if [[ $core != $(lxc exec $name nproc) ]]; then
-  echo "limits.cpu failed, trying to write sys file"
-  if [[ $core == 1 ]]; then
-    limit_cores=$(($RANDOM % 4))
-  elif [[ $core == 2 ]]; then
-    random_pool=("0,1" "0,2" "0,3" "1,2" "1,3" "2,3")
-    random_pool_num=${#random_pool[*]}
-    limit_cores=${random_pool[$((RANDOM % random_pool_num))]}
-  fi
-  sudo -u cloud ssh $target_node "sudo sh -c 'echo $limit_cores > /sys/fs/cgroup/lxc.payload.$name/cpuset.cpus'"
-  if [[ $core == $(lxc exec $name nproc) ]]; then
-    echo "set cpu limit success"
-  fi
-fi

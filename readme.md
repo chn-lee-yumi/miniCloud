@@ -20,6 +20,8 @@ v2.0版本和v1.0版本相比和有较大改动。完善了一些功能，将vir
 
 要使用前端和API，执行`python3 main.py`即可。
 
+TODO：安装完LXD后机器需要重启，否则cpu限制不生效 https://github.com/lxc/lxd/issues/10997 目前机器重启后流表会丢失，需要手动调API刷新流表。计划后续版本解决这个问题。
+
 ## 已知BUG
 
 - 新镜像，第一次启动大概率卡在Starting，容器状态为STOPPED
