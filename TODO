@@ -1,6 +1,8 @@
-增加Tenant功能-宿主部分（控制器/API未匹配）。其余操作的tenant权限管理（目前可以操作别的tenant的机器）
-LXD web terminal？
-多加个网桥来避免容器关机丢流表？增加路由表功能，不同目的地走不同网关？
+增加Tenant功能-宿主部分（控制器/API未匹配）。其余操作的tenant权限管理（目前可以操作别的tenant的机器）。API权限校验。前端实例每行增加按钮？
+多加个网桥来避免容器关机丢流表？通过感应LXD容器的启停来修改流表，保证容器重启后网络正常（hook？）
+增加路由表功能，不同目的地走不同网关？
+优化switch的功能，直接用宿主？本地端口广播到所有本地口和vxlan口，vxlan收到的口仅广播到本地口。
+处理所有节点重启后网络配置恢复问题（包括网络节点的br0和iptable配置）
 
 create whitelist hash:net family inet hashsize 1024 maxelem 1000000
 # dns

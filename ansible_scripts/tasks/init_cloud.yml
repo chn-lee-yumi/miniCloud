@@ -15,6 +15,7 @@
     name:
       - flask
       - flask-sqlalchemy
+      - flask-sock
       - IPy
 # 测试所有服务器的连接并加载ssh指纹
 - name: Test ssh connection

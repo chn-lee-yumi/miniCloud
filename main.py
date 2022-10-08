@@ -1,7 +1,9 @@
 import copy
 import json
+import threading
 
 from flask import Flask, session, redirect, url_for, request, jsonify
+from flask_sock import Sock
 from sqlalchemy import or_
 
 from config import *
@@ -13,6 +15,7 @@ app = Flask(__name__)
 app.secret_key = b'_5#y212\rfaL"F4aQ8asdfn\xec]/'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///miniCloud2.db'
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
+sock = Sock(app)
 db.init_app(app)
 
 
@@ -70,6 +73,39 @@ def init():
     """初始化数据库"""
     with app.app_context():
         db.create_all()
+
+
+def read_pipe(p, ws):
+    """从管道中不断读取字符并发送到websocket"""
+    buf = b""
+    while True:
+        out = p.stdout.read(1)
+        # print("out", out)
+        if not out:  # 读到空就退出线程
+            break
+        buf += out
+        try:  # 处理非utf8字符的问题
+            out = buf.decode()
+            buf = b""
+        except UnicodeDecodeError:
+            continue
+        ws.send(out)
+
+
+# socket 路由，访问url是： ws://localhost:5000/console
+@sock.route('/console/<instance>')
+def console_socket(ws, instance):
+    """web终端，连接容器"""
+    # TODO：判断用户是否有权限连接该终端，在页面实例每一行增加远程连接选项和可选安装ssh的选项
+    ws.send("\033[33mConnecting to %s...\033[0m\r\n" % instance)
+    cmd = 'python3 -c "import pty; pty.spawn(%s)"' % ["sudo", "-i", "lxc", "exec", instance, "bash"]
+    p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    threading.Thread(target=read_pipe, args=(p, ws,)).start()
+    while True:
+        data_recv = ws.receive()
+        # print("data_recv", data_recv)
+        p.stdin.write(data_recv.encode())
+        p.stdin.flush()
 
 
 @app.route('/')
@@ -263,8 +299,17 @@ def api_delete_subnet(subnet_uuid):
 
 @app.route('/api/refresh_flow_table/host/<ip>', methods=['POST'])
 def api_refresh_flow_table_host(ip):
-    host = db.session.query(Host).filter_by(management_ip=ip).first()
-    msg = refresh_flow_table(host.uuid, Host)
+    node = db.session.query(Host).filter_by(management_ip=ip).first()
+    msg = refresh_flow_table(node.uuid, Host)
+    if msg:
+        return msg, 500
+    return "", 204
+
+
+@app.route('/api/refresh_flow_table/gateway/<ip>', methods=['POST'])
+def api_refresh_flow_table_gateway(ip):
+    node = db.session.query(Gateway).filter_by(management_ip=ip).first()
+    msg = refresh_flow_table(node.uuid, Gateway)
     if msg:
         return msg, 500
     return "", 204
