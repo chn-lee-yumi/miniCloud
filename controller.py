@@ -364,7 +364,8 @@ def delete_gateway(gateway_uuid: str):
 
 
 def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, instance_name: str,
-              username: str, pubkey: str, az: str, tenant: str, create_user: str, vm_ip: str = "", host_ip: str = ""):
+              az: str, tenant: str, create_user: str, is_enable_ssh: bool,
+              username: str = "", pubkey: str = "", vm_ip: str = "", host_ip: str = ""):
     """
     创建虚拟机
     :param subnet_uuid: 子网uuid
@@ -374,6 +375,7 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
     :param instance_name: 虚拟机名字
     :param username: 用户名
     :param pubkey: 公钥
+    :param is_enable_ssh: 是否启用ssh登录
     :param az: 可用区
     :param tenant: VM所属租户
     :param create_user: 创建VM的用户
@@ -382,7 +384,7 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
     :return: 0=OK 1=Failed
     """
     # 检查用户名
-    if username in ["root", "admin"]:
+    if is_enable_ssh and username in ["root", "admin"]:
         return "用户名不能为%s，请填入其他用户名。后续在服务器中用sudo切到root。" % username
     # 检查规格
     if flavor not in FLAVORS:
@@ -469,10 +471,18 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
     vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
     db.session.commit()
     # 创建虚拟机
-    code, _, _ = exec_cmd("""sudo bash ~/miniCloud/lxc-run.sh %s %s %s %sMB %s %s %s %s %s '%s' %s""" % (
-        instance_name, os, cpu, mem,
-        vm_ip, IPy.IP(IPy.IP(subnet.cidr).int() + 1).strNormal(), str(IPy.IP(subnet.cidr).netmask()), vm_interface,
-        username, pubkey, host_ip))
+    if not is_enable_ssh:
+        username = ""
+        pubkey = ""
+    if pubkey:
+        code, _, _ = exec_cmd("""sudo bash ~/miniCloud/lxc-run.sh %s %s %s %sMB %s %s %s %s %s '%s' %s""" % (
+            instance_name, os, cpu, mem,
+            vm_ip, IPy.IP(IPy.IP(subnet.cidr).int() + 1).strNormal(), str(IPy.IP(subnet.cidr).netmask()), vm_interface,
+            username, pubkey, host_ip))
+    else:
+        code, _, _ = exec_cmd("""sudo bash ~/miniCloud/lxc-run.sh %s %s %s %sMB %s %s %s %s %s""" % (
+            instance_name, os, cpu, mem,
+            vm_ip, IPy.IP(IPy.IP(subnet.cidr).int() + 1).strNormal(), str(IPy.IP(subnet.cidr).netmask()), vm_interface, host_ip))
     if code:
         vm.stage += " ERROR"
         db.session.commit()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 需要注意，如果镜像不是cloud镜像，则lxd在启动容器的时候会卡在Starting
 usage() {
-  echo "Usage: $0 [容器名] [镜像名] [CPU数] [内存大小] [IP] [GATEWAY] [NETMASK] [veth] [用户名] [密码] [宿主(可选)]"
+  echo "Usage: $0 [容器名] [镜像名] [CPU数] [内存大小] [IP] [GATEWAY] [NETMASK] [veth] [用户名(可选)] [密码(可选)] [宿主(可选)]"
   echo "Example: $0 ubuntu1 ubuntu/jammy 2 512MB 10.0.2.10 10.0.2.1 255.255.255.0 veth1 yumi 'ssh-rsa abcdefg'"
   exit 2
 }
@@ -20,9 +20,15 @@ ipaddr=$5
 gateway=$6
 netmask=$7
 veth=$8
-username=$9
-pubkey=${10}
-target_node=${11}
+if [ $# -eq 11 ]; then
+  username=$9
+  pubkey=${10}
+  target_node=${11}
+elif [ $# -eq 9 ]; then # 不创建ssh登录用户，默认创建一个cloud
+  username="cloud"
+  pubkey="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDSpMvlkRaWzXT1MnNhi/72POCNi6HGxLWFQz8G02pscrkH2BIqzivKA6p6E3MdVw7XN/D/1t+nc49BL5QtbMsCkZ2tD0NRLtAEM1voJVnV+UO6ehV/5gCqdVlf1uwFfQcPoeoABJl0j/+aqAmw6GCE9Prg1jcq7oIc7qGX4L+x548aafiGnSnOzA6Q9LOpK+y92Ah5wGPZVcU0Lc8vU5VDpuAdPyMxNpr/qnyXywIIl1SHacE1Gl0sQZhdId0xk+LGcEITGYynyYPHnbHs8moI2ARW9MM/9k3Esqlg87WwSANTNxwUvqhj8u/iconki8JGTULAJS3wzAX/MhMw7xNtOHKeZa7D2vUJ8JbiYpn6f9RlSYkJnG3qft/VU0fejmnxL2eBGYO7sEEdVsVs1vn0FOmxcqYERde8N5Ldop1OQynopv0y5FnIRdLeUjIuBbHfySf5X7tBv+qSyr3dqKss8fcNhAOw9XNDq/vjwtnJnY0nJx2aSt2OC5M2ndLuots= cloud"
+  target_node=$9
+fi
 #password=`mkpasswd --method=SHA-512 $password`
 
 ubuntu_mirror="apt:
@@ -54,8 +60,6 @@ elif [[ $image =~ "ubuntu" && $is_not_aarch64 == 0 ]]; then
   mirror_config=${ubuntu_ports_mirror}
 elif [[ $image =~ "debian" ]]; then
   mirror_config=${debian_mirror}
-elif [[ $image =~ "kali" ]]; then
-  mirror_config=${kali_mirror}
 fi
 
 lxc profile copy vm_template $name
@@ -102,4 +106,4 @@ fi
 
 lxc config set $name limits.cpu $core
 lxc config set $name limits.memory $mem
-lxc config set $name security.nesting=true  # enable docker support
+lxc config set $name security.nesting=true # enable docker support

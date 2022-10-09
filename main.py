@@ -191,7 +191,11 @@ def api_user_info():
 @login_required
 def api_change_tenant():
     # 修改当前租户
+    user = db.session.query(User).filter_by(name=session['username']).first()
+    tenants = user.tenant.split(",")
     args = request.get_json()
+    if args['tenant'] not in tenants:
+        return "用户没有这个tenant的权限", 403
     session['tenant'] = args['tenant']
     return "", 200
 
@@ -235,12 +239,12 @@ def api_get_vm_list():
 @login_required
 def api_create_vm():
     param = request.get_json()
-    if not param["pubkey"].startswith("ssh-rsa "):
+    if param["enableSSH"] and not param["pubkey"].startswith("ssh-rsa "):
         return "公钥需要以ssh-rsa 开头！", 400
     msg = create_vm(
         subnet_uuid=param["subnet"], gateway_internet_ip=param["gateway"], flavor=param["flavor"], os=param["os"],
-        instance_name=param["instance_name"], username=param["username"], pubkey=param["pubkey"], az=param["az"],
-        tenant=session["tenant"], create_user=session["username"])
+        instance_name=param["instance_name"], username=param["username"], is_enable_ssh=param["enableSSH"], pubkey=param["pubkey"],
+        az=param["az"], tenant=session["tenant"], create_user=session["username"])
     if msg:
         return msg, 500
     return "", 201
@@ -249,6 +253,9 @@ def api_create_vm():
 @app.route('/api/vm/<vm_uuid>', methods=['DELETE'])
 @login_required
 def api_delete_vm(vm_uuid):
+    vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
+    if session["tenant"] != vm.tenant:
+        return "vm不在此tenant，请切换到对应tenant再试", 403
     msg = delete_vm(vm_uuid)
     if msg:
         return msg, 500
@@ -258,6 +265,9 @@ def api_delete_vm(vm_uuid):
 @app.route('/api/vm/<vm_uuid>/start', methods=['GET'])
 @login_required
 def api_start_vm(vm_uuid):
+    vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
+    if session["tenant"] != vm.tenant:
+        return "vm不在此tenant，请切换到对应tenant再试", 403
     msg = start_vm(vm_uuid)
     if msg:
         return msg, 500
@@ -267,6 +277,9 @@ def api_start_vm(vm_uuid):
 @app.route('/api/vm/<vm_uuid>/shutdown', methods=['GET'])
 @login_required
 def api_shutdown_vm(vm_uuid):
+    vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
+    if session["tenant"] != vm.tenant:
+        return "vm不在此tenant，请切换到对应tenant再试", 403
     msg = shutdown_vm(vm_uuid)
     if msg:
         return msg, 500
@@ -275,6 +288,9 @@ def api_shutdown_vm(vm_uuid):
 
 # @app.route('/api/vm/<vm_uuid>/reboot', methods=['GET'])
 # def api_reboot_vm(vm_uuid):
+#     vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
+#     if session["tenant"] != vm.tenant:
+#         return "vm不在此tenant，请切换到对应tenant再试", 403
 #     msg = reboot_vm(vm_uuid)
 #     if msg:
 #         return msg, 500
@@ -311,6 +327,9 @@ def api_create_nat():
 @app.route('/api/nat/<nat_uuid>', methods=['DELETE'])
 @login_required
 def api_delete_nat(nat_uuid):
+    nat = db.session.query(NAT).filter_by(uuid=nat_uuid).first()
+    if session["tenant"] != nat.tenant:
+        return "NAT不在此tenant，请切换到对应tenant再试", 403
     if delete_nat(nat_uuid):
         return "failed", 500
     return "", 204
@@ -335,6 +354,9 @@ def api_create_subnet():
 @app.route('/api/subnet/<subnet_uuid>', methods=['DELETE'])
 @login_required
 def api_delete_subnet(subnet_uuid):
+    subnet = db.session.query(Subnet).filter_by(uuid=subnet_uuid).first()
+    if session["tenant"] != subnet.tenant:
+        return "subnet不在此tenant，请切换到对应tenant再试", 403
     msg = delete_subnet(subnet_uuid)
     if msg:
         return msg, 500
@@ -344,6 +366,9 @@ def api_delete_subnet(subnet_uuid):
 @app.route('/api/refresh_flow_table/host/<ip>', methods=['POST'])
 @login_required
 def api_refresh_flow_table_host(ip):
+    user = db.session.query(User).filter_by(name=session["username"]).first()
+    if not user.is_admin:
+        return "仅管理员可调用该API", 403
     node = db.session.query(Host).filter_by(management_ip=ip).first()
     msg = refresh_flow_table(node.uuid, Host)
     if msg:
@@ -354,6 +379,9 @@ def api_refresh_flow_table_host(ip):
 @app.route('/api/refresh_flow_table/gateway/<ip>', methods=['POST'])
 @login_required
 def api_refresh_flow_table_gateway(ip):
+    user = db.session.query(User).filter_by(name=session["username"]).first()
+    if not user.is_admin:
+        return "仅管理员可调用该API", 403
     node = db.session.query(Gateway).filter_by(management_ip=ip).first()
     msg = refresh_flow_table(node.uuid, Gateway)
     if msg:

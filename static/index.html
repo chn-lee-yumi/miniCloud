@@ -8,13 +8,12 @@
 <body>
 <div id="app" v-loading="loading">
 
-    <h1>迷你云平台(V2.0.1-20221006)【仅供娱乐，还在开发，随时删库】</h1>
+    <h1>迷你云平台(V2.1.0-20221009)【仅供娱乐，还在开发，随时删库】</h1>
 
     <h2>使用说明</h2>
     <el-card>
         <div class="text item">SSH端口：22。<strong>需要手动加一条NAT规则才能够从外网访问。</strong></div>
         <div class="text item">出于安全考虑，外网仅放通dns和镜像站。但是不影响外网其他机器访问虚拟机的NAT端口。</div>
-        <div class="text item">出于安全考虑，虚拟机<strong>仅支持公钥登录，不支持密码登录</strong>，请提前准备好公私钥对。</div>
         <div class="text item">AZ(Available Zone，可用区)：可以看成是一个机房或者一个集群。</div>
         <div class="text item">注意：仅供学习、测试，<strong>随时倒闭，请勿保存重要数据。</strong></div>
     </el-card>
@@ -56,8 +55,13 @@
         <el-table-column prop="az" label="所在可用区"></el-table-column>
         <el-table-column prop="create_user" label="创建用户"></el-table-column>
         <el-table-column prop="stage" label="状态"></el-table-column>
-        <el-table-column prop="instance_name" label="控制台">
-            <el-link slot-scope="scope" icon="el-icon-link" :href="['/static/console.html?instance='+scope.row.instance_name]" target="_blank"></el-link>
+        <el-table-column label="操作">
+            <template slot-scope="scope">
+                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="打开网页版控制台" placement="top">
+                    <el-button circle type="info" size="small" icon="el-icon-link"
+                               @click="openUrl('/static/console.html?instance='+scope.row.instance_name)"></el-button>
+                </el-tooltip>
+            </template>
         </el-table-column>
     </el-table>
 
@@ -88,52 +92,38 @@
     </el-table>
 
     <h2>创建虚拟机</h2>
-    <el-form :inline="true" :model="formCreateInstance">
-        <el-form-item label="创建虚拟机"></el-form-item>
-        <el-form-item label="">
-            <el-input v-model="formCreateInstance.instance_name" placeholder="虚拟机名字"></el-input>
-        </el-form-item>
-        <el-form-item label="">
+    <el-form :model="formCreateInstance">
+        <el-form-item>
+            <el-input style="width:200px" v-model="formCreateInstance.instance_name" placeholder="虚拟机名字"></el-input>
             <el-select v-model="formCreateInstance.os" placeholder="操作系统">
                 <el-option v-for="os in osList" :value="os"></el-option>
             </el-select>
-        </el-form-item>
-        <el-form-item label="">
             <el-select v-model="formCreateInstance.az" placeholder="AZ(可用区)">
                 <el-option v-for="az in azList" :value="az"></el-option>
             </el-select>
-        </el-form-item>
-        <el-form-item label="">
             <el-select v-model="formCreateInstance.flavor" placeholder="虚拟机配置">
                 <el-option v-for="flavor in flavorList" :value="flavor"></el-option>
             </el-select>
-        </el-form-item>
-        <el-form-item label="">
             <el-select v-model="formCreateInstance.subnet" placeholder="子网">
                 <el-option v-for="item in subnetList" :key="item.cidr" :label="item.cidr" :value="item.uuid"></el-option>
             </el-select>
-        </el-form-item>
-        <el-form-item label="">
             <el-select v-model="formCreateInstance.gateway" placeholder="出口IP">
                 <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
             </el-select>
-        </el-form-item>
-        <el-form-item label="">
-            <el-input v-model="formCreateInstance.username" placeholder="用户名"></el-input>
-        </el-form-item>
-        <el-form-item label="">
-            <el-input style="width:500px" v-model="formCreateInstance.pubkey" placeholder="登录公钥：请输入ssh-rsa开头的公钥，如ssh-rsa AAAAB3NzaC1..."></el-input>
-        </el-form-item>
-        <el-form-item>
             <el-button type="primary" @click="createInstance">创建</el-button>
         </el-form-item>
+        <el-form-item label="创建SSH登录用户">
+            <el-switch v-model="formCreateInstance.enableSSH"></el-switch>
+            <el-input style="width:150px" v-if="formCreateInstance.enableSSH" v-model="formCreateInstance.username" placeholder="用户名"></el-input>
+            <el-input style="width:900px" v-if="formCreateInstance.enableSSH" v-model="formCreateInstance.pubkey"
+                      placeholder="登录公钥：请输入ssh-rsa开头的公钥，如ssh-rsa AAAAB3NzaC1..."></el-input>
+        </el-form-item>
     </el-form>
-
 
     <h2>虚拟机管理</h2>
     <el-form :inline="true" :model="formManageInstance">
         <el-form-item label="虚拟机ID">
-            <el-input v-model="formManageInstance.vm_uuid" placeholder="虚拟机ID"></el-input>
+            <el-input style="width:300px" v-model="formManageInstance.vm_uuid" placeholder="虚拟机ID"></el-input>
         </el-form-item>
         <el-form-item>
             <el-button type="success" @click="optInstance('start')">开机</el-button>
@@ -160,26 +150,26 @@
     <h2>端口映射（NAT）管理</h2>
     <el-form :inline="true" :model="formCreateNat">
         <el-form-item label="创建端口映射（NAT）"></el-form-item>
-        <el-form-item label="">
+        <el-form-item>
             <el-select v-model="formCreateNat.protocol" placeholder="协议">
                 <el-option label="TCP" value="tcp"></el-option>
                 <el-option label="UDP" value="udp"></el-option>
             </el-select>
         </el-form-item>
-        <el-form-item label="">
+        <el-form-item>
             <el-select v-model="formCreateNat.internet_ip" placeholder="外网IP（出口IP）">
                 <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
             </el-select>
         </el-form-item>
-        <el-form-item label="">
+        <el-form-item>
             <el-select v-model="formCreateNat.internal_ip" placeholder="内网IP（虚拟机IP）">
                 <el-option v-for="item in vmList" :key="item.ip" :label="item.ip" :value="item.ip"></el-option>
             </el-select>
         </el-form-item>
-        <el-form-item label="">
+        <el-form-item>
             <el-input v-model="formCreateNat.external_port" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="外网端口"></el-input>
         </el-form-item>
-        <el-form-item label="">
+        <el-form-item>
             <el-input v-model="formCreateNat.internal_port" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="内网端口"></el-input>
         </el-form-item>
         <el-form-item>
@@ -188,8 +178,8 @@
     </el-form>
     <el-form :inline="true" :model="formManageNat">
         <el-form-item label="删除端口映射（NAT）"></el-form-item>
-        <el-form-item label="">
-            <el-input v-model="formManageNat.uuid" placeholder="NAT ID"></el-input>
+        <el-form-item>
+            <el-input style="width:300px" v-model="formManageNat.uuid" placeholder="NAT ID"></el-input>
         </el-form-item>
         <el-form-item>
             <el-button type="danger" @click="deleteNat">删除</el-button>
@@ -207,7 +197,7 @@
     </el-form>
     <el-form :inline="true" :model="formManageSubnet">
         <el-form-item label="删除子网">
-            <el-input v-model="formManageSubnet.uuid" placeholder="子网 ID"></el-input>
+            <el-input style="width:300px" v-model="formManageSubnet.uuid" placeholder="子网 ID"></el-input>
         </el-form-item>
         <el-form-item>
             <el-button type="danger" @click="deleteSubnet">删除</el-button>
@@ -245,7 +235,10 @@ new Vue({
             subnet: '',
             os: '',
             flavor: '',
-            az: ''
+            az: '',
+            username: '',
+            pubkey: '',
+            enableSSH: false,
         },
         formManageInstance: {
             vm_uuid: '',
@@ -274,6 +267,9 @@ new Vue({
         this.timer = setInterval(this.updateStatus, 10000);
     },
     methods: {
+	    openUrl(url) {
+	      window.open(url, "_blank");
+	    },
         updateStatus: function() {
             var that = this;
             axios.get('/api/user_info')
