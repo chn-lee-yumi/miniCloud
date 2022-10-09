@@ -1,7 +1,12 @@
 import copy
 import json
+import os
 import threading
+import time
+import uuid
+from functools import wraps
 
+import simple_websocket
 from flask import Flask, session, redirect, url_for, request, jsonify
 from flask_sock import Sock
 from sqlalchemy import or_
@@ -17,6 +22,20 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///miniCloud2.db'
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
 sock = Sock(app)
 db.init_app(app)
+console_session_map = {}  # 控制台的连接字典，key为连接id，value为连接空闲时间，超过1分钟就断掉。
+
+
+def login_required(func):
+    """需要先登录的装饰器"""
+
+    @wraps(func)
+    def decorated_view(*args, **kwargs):
+        if "username" in session:
+            return func(*args, **kwargs)
+        else:
+            return "请先登录", 403
+
+    return decorated_view
 
 
 def dict_to_list(data: dict, attr: str):
@@ -50,32 +69,13 @@ def get_list(obj):
     return result_list
 
 
-# def get_list_raw(obj):
-#     """
-#         获取对象列表
-#         :param obj: 对象名字（可以是列表）
-#         :return: 对象列表
-#     """
-#
-#     def _get_list(_obj):
-#         return db.session.query(_obj).all()
-#
-#     if type(obj) == list:
-#         result_list = []
-#         for o in obj:
-#             result_list.extend(_get_list(o))
-#     else:
-#         result_list = _get_list(obj)
-#     return result_list
-
-
 def init():
     """初始化数据库"""
     with app.app_context():
         db.create_all()
 
 
-def read_pipe(p, ws):
+def read_pipe(p, ws, session_id):
     """从管道中不断读取字符并发送到websocket"""
     buf = b""
     while True:
@@ -89,21 +89,51 @@ def read_pipe(p, ws):
             buf = b""
         except UnicodeDecodeError:
             continue
-        ws.send(out)
+        try:
+            ws.send(out)
+            console_session_map[session_id] = time.time()  # 更新session时间
+        except simple_websocket.ws.ConnectionClosed:
+            break
+
+
+def monitor_websocket(p, ws, session_id):
+    """监控websocket状态，如果websocket已经断开，则kill掉控制台"""
+    while time.time() - console_session_map[session_id] < CONSOLE_TIMEOUT:
+        time.sleep(1)
+    # 超时
+    os.system("sudo python3 kill_console.py " + str(p.pid))
+    ws.close()
 
 
 # socket 路由，访问url是： ws://localhost:5000/console
 @sock.route('/console/<instance>')
-def console_socket(ws, instance):
+def socket_console(ws, instance):
     """web终端，连接容器"""
-    # TODO：判断用户是否有权限连接该终端，在页面实例每一行增加远程连接选项和可选安装ssh的选项
+    if "username" not in session:
+        ws.send("\033[31m请先登录！\033[0m\r\n")
+        ws.close()
+        return
+    vm = db.session.query(VirtualMachine).filter_by(instance_name=instance).first()
+    if not vm:
+        ws.send("\033[31m虚拟机 %s 不存在！\033[0m\r\n" % instance)
+        ws.close()
+        return
+    user = db.session.query(User).filter_by(name=session["username"]).first()
+    if user.tenant != "ALL" and vm.tenant not in user.tenant.split(","):
+        ws.send("\033[31m你没有虚拟机所属tenant的权限。\033[0m\r\n")
+        ws.close()
+        return
     ws.send("\033[33mConnecting to %s...\033[0m\r\n" % instance)
+    session_id = uuid.uuid5(uuid.NAMESPACE_DNS, session["username"] + "." + str(time.time()))
+    console_session_map[session_id] = time.time()
     cmd = 'python3 -c "import pty; pty.spawn(%s)"' % ["sudo", "-i", "lxc", "exec", instance, "bash"]
     p = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    threading.Thread(target=read_pipe, args=(p, ws,)).start()
+    threading.Thread(target=read_pipe, args=(p, ws, session_id)).start()
+    threading.Thread(target=monitor_websocket, args=(p, ws, session_id)).start()
     while True:
         data_recv = ws.receive()
         # print("data_recv", data_recv)
+        console_session_map[session_id] = time.time()  # 更新session时间
         p.stdin.write(data_recv.encode())
         p.stdin.flush()
 
@@ -139,12 +169,12 @@ def login():
 
 @app.route('/logout')
 def logout():
-    # remove the username from the session if it's there
     session.pop('username', None)
     return redirect(url_for('index'))
 
 
 @app.route('/api/user_info')
+@login_required
 def api_user_info():
     # 返回当前用户信息
     user = db.session.query(User).filter_by(name=session['username']).first()
@@ -158,6 +188,7 @@ def api_user_info():
 
 
 @app.route('/api/change_tenant', methods=['POST'])
+@login_required
 def api_change_tenant():
     # 修改当前租户
     args = request.get_json()
@@ -166,6 +197,7 @@ def api_change_tenant():
 
 
 @app.route('/api/resources', methods=['GET'])
+@login_required
 def api_get_resources():
     # 返回AZ列表和各AZ不同flavor可创建的机器数量
     resource_list = []
@@ -191,6 +223,7 @@ def api_get_resources():
 
 
 @app.route('/api/vm', methods=['GET'])
+@login_required
 def api_get_vm_list():
     vm_list = get_list(VirtualMachine)
     for vm in vm_list:
@@ -199,6 +232,7 @@ def api_get_vm_list():
 
 
 @app.route('/api/vm', methods=['POST'])
+@login_required
 def api_create_vm():
     param = request.get_json()
     if not param["pubkey"].startswith("ssh-rsa "):
@@ -213,6 +247,7 @@ def api_create_vm():
 
 
 @app.route('/api/vm/<vm_uuid>', methods=['DELETE'])
+@login_required
 def api_delete_vm(vm_uuid):
     msg = delete_vm(vm_uuid)
     if msg:
@@ -221,6 +256,7 @@ def api_delete_vm(vm_uuid):
 
 
 @app.route('/api/vm/<vm_uuid>/start', methods=['GET'])
+@login_required
 def api_start_vm(vm_uuid):
     msg = start_vm(vm_uuid)
     if msg:
@@ -229,6 +265,7 @@ def api_start_vm(vm_uuid):
 
 
 @app.route('/api/vm/<vm_uuid>/shutdown', methods=['GET'])
+@login_required
 def api_shutdown_vm(vm_uuid):
     msg = shutdown_vm(vm_uuid)
     if msg:
@@ -245,16 +282,19 @@ def api_shutdown_vm(vm_uuid):
 
 
 @app.route('/api/gateway', methods=['GET'])
+@login_required
 def api_get_gateway_list():
     return jsonify(get_list(Gateway))
 
 
 @app.route('/api/nat', methods=['GET'])
+@login_required
 def api_get_nat_list():
     return jsonify(get_list(NAT))
 
 
 @app.route('/api/nat', methods=['POST'])
+@login_required
 def api_create_nat():
     param = json.loads(request.get_data(as_text=True))
     print(param)
@@ -269,6 +309,7 @@ def api_create_nat():
 
 
 @app.route('/api/nat/<nat_uuid>', methods=['DELETE'])
+@login_required
 def api_delete_nat(nat_uuid):
     if delete_nat(nat_uuid):
         return "failed", 500
@@ -276,11 +317,13 @@ def api_delete_nat(nat_uuid):
 
 
 @app.route('/api/subnet', methods=['GET'])
+@login_required
 def api_get_subnet_list():
     return jsonify(get_list(Subnet))
 
 
 @app.route('/api/subnet', methods=['POST'])
+@login_required
 def api_create_subnet():
     param = json.loads(request.get_data(as_text=True))
     msg = create_subnet(int(param["mask"]))
@@ -290,6 +333,7 @@ def api_create_subnet():
 
 
 @app.route('/api/subnet/<subnet_uuid>', methods=['DELETE'])
+@login_required
 def api_delete_subnet(subnet_uuid):
     msg = delete_subnet(subnet_uuid)
     if msg:
@@ -298,6 +342,7 @@ def api_delete_subnet(subnet_uuid):
 
 
 @app.route('/api/refresh_flow_table/host/<ip>', methods=['POST'])
+@login_required
 def api_refresh_flow_table_host(ip):
     node = db.session.query(Host).filter_by(management_ip=ip).first()
     msg = refresh_flow_table(node.uuid, Host)
@@ -307,6 +352,7 @@ def api_refresh_flow_table_host(ip):
 
 
 @app.route('/api/refresh_flow_table/gateway/<ip>', methods=['POST'])
+@login_required
 def api_refresh_flow_table_gateway(ip):
     node = db.session.query(Gateway).filter_by(management_ip=ip).first()
     msg = refresh_flow_table(node.uuid, Gateway)
@@ -316,6 +362,7 @@ def api_refresh_flow_table_gateway(ip):
 
 
 # @app.route('/api/route', methods=['PUT'])
+# @login_required
 # def api_modify_route():
 #     param = json.loads(request.get_data(as_text=True))
 #     if set_vm_gateway(param["vm_uuid"], param["gateway_internet_ip"]):

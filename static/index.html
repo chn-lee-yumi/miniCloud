@@ -56,6 +56,9 @@
         <el-table-column prop="az" label="所在可用区"></el-table-column>
         <el-table-column prop="create_user" label="创建用户"></el-table-column>
         <el-table-column prop="stage" label="状态"></el-table-column>
+        <el-table-column prop="instance_name" label="控制台">
+            <el-link slot-scope="scope" icon="el-icon-link" :href="['/static/console.html?instance='+scope.row.instance_name]" target="_blank"></el-link>
+        </el-table-column>
     </el-table>
 
     <h2>NAT列表</h2>
@@ -222,7 +225,12 @@ new Vue({
     el: '#app',
     data: {
         loading: false,
-        userInfo: {name: '', is_admin: false, current_tenant: '', tenants: []},
+        userInfo: {
+            name: '',
+            is_admin: false,
+            current_tenant: '',
+            tenants: []
+        },
         resources: null,
         azList: null,
         flavorList: null,
@@ -268,48 +276,60 @@ new Vue({
     methods: {
         updateStatus: function() {
             var that = this;
-            axios.get('/api/user_info').then(function(response) {
-                console.log(response);
-                that.userInfo = response["data"];
-            }).
+            axios.get('/api/user_info')
+                .then(function(response) {
+                    console.log(response);
+                    that.userInfo = response["data"];
+                })
+                .
             catch(function(error) {
                 console.log(error);
             });
-            axios.get('/api/resources').then(function(response) {
-                console.log(response);
-                that.resources = response["data"]["resources"];
-                that.azList = response["data"]["az_list"];
-                that.flavorList = response["data"]["flavor_list"];
-                that.osList = response["data"]["os_list"];
-            }).
+            axios.get('/api/resources')
+                .then(function(response) {
+                    console.log(response);
+                    that.resources = response["data"]["resources"];
+                    that.azList = response["data"]["az_list"];
+                    that.flavorList = response["data"]["flavor_list"];
+                    that.osList = response["data"]["os_list"];
+                })
+                .
             catch(function(error) {
                 console.log(error);
             });
-            axios.get('/api/vm').then(function(response) {
-                console.log(response);
-                that.vmList = response["data"];
-            }).
+            axios.get('/api/vm')
+                .then(function(response) {
+                    console.log(response);
+                    that.vmList = response["data"];
+                })
+                .
             catch(function(error) {
                 console.log(error);
             })
-            axios.get('/api/gateway').then(function(response) {
-                console.log(response);
-                that.gatewayList = response["data"];
-            }).
+            axios.get('/api/gateway')
+                .then(function(response) {
+                    console.log(response);
+                    that.gatewayList = response["data"];
+                })
+                .
             catch(function(error) {
                 console.log(error);
             })
-            axios.get('/api/nat').then(function(response) {
-                console.log(response);
-                that.natList = response["data"];
-            }).
+            axios.get('/api/nat')
+                .then(function(response) {
+                    console.log(response);
+                    that.natList = response["data"];
+                })
+                .
             catch(function(error) {
                 console.log(error);
             })
-            axios.get('/api/subnet').then(function(response) {
-                console.log(response);
-                that.subnetList = response["data"];
-            }).
+            axios.get('/api/subnet')
+                .then(function(response) {
+                    console.log(response);
+                    that.subnetList = response["data"];
+                })
+                .
             catch(function(error) {
                 console.log(error);
             })
@@ -317,14 +337,19 @@ new Vue({
         changeTenant() {
             this.loading = true;
             var that = this;
-            axios.post('/api/change_tenant', {tenant: that.userInfo.current_tenant}).then(function(response) {
-                console.log(response);
-                that.updateStatus();
-            }).
+            axios.post('/api/change_tenant', {
+                    tenant: that.userInfo.current_tenant
+                })
+                .then(function(response) {
+                    console.log(response);
+                    that.updateStatus();
+                })
+                .
             catch(function(error) {
-                console.log(error);
-                alert(error.response.data);
-            }).
+                    console.log(error);
+                    alert(error.response.data);
+                })
+                .
             finally(function() {
                 that.loading = false;
             })
@@ -333,16 +358,19 @@ new Vue({
             this.loading = true;
             var that = this;
             alert("点击确定开始创建，大约需要两分钟，请耐心等候。如果卡了很久或创建失败，可以刷新页面，删掉虚拟机重试。虚拟机创建成功后需要两分钟初始化，之后才能通过SSH连上。");
-            axios.post('/api/vm', that.formCreateInstance).then(function(response) {
-                console.log(response);
-                if (response['status'] != 201) alert(response['data']);
-                else alert("创建成功！");
-                that.updateStatus();
-            }).
+            axios.post('/api/vm', that.formCreateInstance)
+                .then(function(response) {
+                    console.log(response);
+                    if (response['status'] != 201) alert(response['data']);
+                    else alert("创建成功！");
+                    that.updateStatus();
+                })
+                .
             catch(function(error) {
-                console.log(error);
-                alert(error.response['data']);
-            }).
+                    console.log(error);
+                    alert(error.response['data']);
+                })
+                .
             finally(function() {
                 that.loading = false;
             })
@@ -351,72 +379,87 @@ new Vue({
             this.loading = true;
             var that = this;
             if (opt == "delete") {
-                axios.delete('/api/vm/' + that.formManageInstance.vm_uuid).then(function(response) {
-                    console.log(response);
-                    if (response['status'] != 204) alert(response['data']);
-                    else alert("执行成功！");
-                    that.updateStatus();
-                }).
+                axios.delete('/api/vm/' + that.formManageInstance.vm_uuid)
+                    .then(function(response) {
+                        console.log(response);
+                        if (response['status'] != 204) alert(response['data']);
+                        else alert("执行成功！");
+                        that.updateStatus();
+                    })
+                    .
                 catch(function(error) {
-                    console.log(error);
-                    alert(error.response['data']);
-                }).
+                        console.log(error);
+                        alert(error.response['data']);
+                    })
+                    .
                 finally(function() {
                     that.loading = false;
                 })
             } else if (opt == "setGateway") {
-                axios.put('/api/route', that.formManageInstance).then(function(response) {
-                    console.log(response);
-                    if (response['data'] != "") alert(response['data']);
-                    else alert("执行成功！");
-                    that.updateStatus();
-                }).
+                axios.put('/api/route', that.formManageInstance)
+                    .then(function(response) {
+                        console.log(response);
+                        if (response['data'] != "") alert(response['data']);
+                        else alert("执行成功！");
+                        that.updateStatus();
+                    })
+                    .
                 catch(function(error) {
-                    console.log(error);
-                    alert(error.response['data']);
-                }).
+                        console.log(error);
+                        alert(error.response['data']);
+                    })
+                    .
                 finally(function() {
                     that.loading = false;
                 })
             } else if (opt == "start") {
-                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/start').then(function(response) {
-                    console.log(response);
-                    if (response['data'] != "") alert(response['data']);
-                    else alert("执行成功！");
-                    that.updateStatus();
-                }).
+                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/start')
+                    .then(function(response) {
+                        console.log(response);
+                        if (response['data'] != "") alert(response['data']);
+                        else alert("执行成功！");
+                        that.updateStatus();
+                    })
+                    .
                 catch(function(error) {
-                    console.log(error);
-                    alert(error.response['data']);
-                }).
+                        console.log(error);
+                        alert(error.response['data']);
+                    })
+                    .
                 finally(function() {
                     that.loading = false;
                 })
             } else if (opt == "shutdown") {
-                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/shutdown').then(function(response) {
-                    console.log(response);
-                    if (response['data'] != "") alert(response['data']);
-                    else alert("执行成功！");
-                    that.updateStatus();
-                }).
+                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/shutdown')
+                    .then(function(response) {
+                        console.log(response);
+                        if (response['data'] != "") alert(response['data']);
+                        else alert("执行成功！");
+                        that.updateStatus();
+                    })
+                    .
                 catch(function(error) {
-                    console.log(error);
-                    alert(error.response['data']);
-                }).
+                        console.log(error);
+                        alert(error.response['data']);
+                    })
+                    .
                 finally(function() {
                     that.loading = false;
                 })
             } else if (opt == "reboot") {
-                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/reboot').then(function(response) {
-                    console.log(response);
-                    if (response['data'] != "") alert(response['data']);
-                    else alert("执行成功！");
-                    that.updateStatus();
-                }).
+                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/reboot')
+                    .then(function(response) {
+                        console.log(response);
+                        if (response['data'] != "") alert(response['data']);
+                        else alert("执行成功！");
+                        that.updateStatus();
+                    })
+                    .
                 catch(function(error) {
-                    console.log(error);
-                    alert(error.response['data']);
-                }).
+                        console.log(error);
+                        alert(error.response['data']);
+                    })
+                    .
                 finally(function() {
                     that.loading = false;
                 })
@@ -425,16 +468,19 @@ new Vue({
         createNat() {
             this.loading = true;
             var that = this;
-            axios.post('/api/nat', that.formCreateNat).then(function(response) {
-                console.log(response);
-                if (response['status'] != 201) alert(response['data']);
-                else alert("创建成功！");
-                that.updateStatus();
-            }).
+            axios.post('/api/nat', that.formCreateNat)
+                .then(function(response) {
+                    console.log(response);
+                    if (response['status'] != 201) alert(response['data']);
+                    else alert("创建成功！");
+                    that.updateStatus();
+                })
+                .
             catch(function(error) {
-                console.log(error);
-                alert(error.response.data);
-            }).
+                    console.log(error);
+                    alert(error.response.data);
+                })
+                .
             finally(function() {
                 that.loading = false;
             })
@@ -442,16 +488,19 @@ new Vue({
         deleteNat() {
             this.loading = true;
             var that = this;
-            axios.delete('/api/nat/' + that.formManageNat.uuid).then(function(response) {
-                console.log(response);
-                if (response['status'] != 204) alert(response['data']);
-                else alert("执行成功！");
-                that.updateStatus();
-            }).
+            axios.delete('/api/nat/' + that.formManageNat.uuid)
+                .then(function(response) {
+                    console.log(response);
+                    if (response['status'] != 204) alert(response['data']);
+                    else alert("执行成功！");
+                    that.updateStatus();
+                })
+                .
             catch(function(error) {
-                console.log(error);
-                alert(error.response['data']);
-            }).
+                    console.log(error);
+                    alert(error.response['data']);
+                })
+                .
             finally(function() {
                 that.loading = false;
             })
@@ -459,16 +508,19 @@ new Vue({
         createSubnet() {
             this.loading = true;
             var that = this;
-            axios.post('/api/subnet', that.formCreateSubnet).then(function(response) {
-                console.log(response);
-                if (response['status'] != 201) alert(response['data']);
-                else alert("创建成功！");
-                that.updateStatus();
-            }).
+            axios.post('/api/subnet', that.formCreateSubnet)
+                .then(function(response) {
+                    console.log(response);
+                    if (response['status'] != 201) alert(response['data']);
+                    else alert("创建成功！");
+                    that.updateStatus();
+                })
+                .
             catch(function(error) {
-                console.log(error);
-                alert(error.response.data);
-            }).
+                    console.log(error);
+                    alert(error.response.data);
+                })
+                .
             finally(function() {
                 that.loading = false;
             })
@@ -476,27 +528,24 @@ new Vue({
         deleteSubnet() {
             this.loading = true;
             var that = this;
-            axios.delete('/api/subnet/' + that.formManageSubnet.uuid).then(function(response) {
-                console.log(response);
-                if (response['status'] != 204) alert(response['data']);
-                else alert("执行成功！");
-                that.updateStatus();
-            }).
+            axios.delete('/api/subnet/' + that.formManageSubnet.uuid)
+                .then(function(response) {
+                    console.log(response);
+                    if (response['status'] != 204) alert(response['data']);
+                    else alert("执行成功！");
+                    that.updateStatus();
+                })
+                .
             catch(function(error) {
-                console.log(error);
-                alert(error.response['data']);
-            }).
+                    console.log(error);
+                    alert(error.response['data']);
+                })
+                .
             finally(function() {
                 that.loading = false;
             })
         },
     }
 })
-
-
-
-
-
-
 </script>
 </html>

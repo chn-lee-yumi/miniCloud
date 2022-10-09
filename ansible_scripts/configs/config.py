@@ -1,5 +1,6 @@
 Cloud_CIDR = "{{ cloud_cidr }}"  # 整个云的网段范围
 PASSWORD_SALT = "./s%7fS"  # 密码SHA1前加盐
+CONSOLE_TIMEOUT = 60  # 控制台超时时间
 
 # 虚拟机规格配置
 FLAVORS = {
