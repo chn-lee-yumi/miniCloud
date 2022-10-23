@@ -317,6 +317,8 @@ def api_get_nat_list():
 def api_create_nat():
     param = json.loads(request.get_data(as_text=True))
     print(param)
+    if not param["internet_ip"] or not param["internal_ip"] or not param["protocol"]:
+        return "请填写完整信息！", 400
     if int(param["external_port"]) < 9000 or int(param["external_port"]) > 9999:
         return "端口号可用范围：9000-9999。请勿使用范围外的端口。", 403
     msg = create_nat(internet_ip=param["internet_ip"], internal_ip=param["internal_ip"],
@@ -348,7 +350,9 @@ def api_get_subnet_list():
 @login_required
 def api_create_subnet():
     param = json.loads(request.get_data(as_text=True))
-    msg = create_subnet(int(param["mask"]))
+    # TODO: 支持一个tenant对应多个VPC
+    vpc = db.session.query(VPC).filter_by(tenant=session["tenant"]).first()
+    msg = create_subnet(int(param["mask"]), vpc.uuid)
     if msg:
         return msg, 500
     return "", 201

@@ -12,6 +12,18 @@
     jump: SNAT
     to_source: "{{ nat_ip }}"
     comment: cloud snat rule
+- name: Add SNAT 2
+  become: true
+  become_user: root
+  become_method: sudo
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: "{{ cloud_cidr_2 }}"
+    out_interface: "{{ nat_interface }}"
+    jump: SNAT
+    to_source: "{{ nat_ip }}"
+    comment: cloud snat rule
 # 如果br0没起来，则起来，等价命令ip link set br0 up
 - name: Show OVS bridge
   become: true
