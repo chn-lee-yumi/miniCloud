@@ -1,3 +1,16 @@
+## 使用文件作为btrfs分区
+
+```bash
+truncate -s 10G /root/lxd_storage.img
+mkfs.btrfs /root/lxd_storage.img
+```
+
+修改`/etc/fstab`增加内容：
+
+```txt
+/root/lxd_storage.img /mnt btrfs defaults,noatime,loop 0 0
+```
+
 ## 网关访问白名单
 
 ```bash

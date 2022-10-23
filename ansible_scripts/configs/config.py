@@ -1,9 +1,16 @@
-Cloud_CIDR = "{{ cloud_cidr }}"  # 整个云的网段范围
+Cloud_CIDR = "{{ cloud_cidr }}"  # test的VPC网段范围
+Cloud_CIDR_2 = "{{ cloud_cidr_2 }}"  # test2的VPC网段范围
 PASSWORD_SALT = "./s%7fS"  # 密码SHA1前加盐
 CONSOLE_TIMEOUT = 60  # 控制台超时时间
 
 # 虚拟机规格配置
 FLAVORS = {
+    "a0.tiny": {
+        "performance": 0,
+        "cpu": 1,
+        "mem": 128,
+        "arch": "arm"
+    },
     "a1.small": {
         "performance": 1,
         "cpu": 1,

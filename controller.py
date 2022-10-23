@@ -434,6 +434,9 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
         hosts = db.session.query(Host).filter_by(az=az, arch=arch, performance=performance).all()
         host_dict = {}
         for host in hosts:
+            # 忽略非共享宿主和非自己项目的宿主
+            if host.tenant != "ALL" and host.tenant != tenant:
+                continue
             host_dict[host.management_ip] = {"cpu": host.cpu * host.cpu_alloc_ratio, "mem": host.mem * host.mem_alloc_ratio}
         for _vm in db.session.query(VirtualMachine).all():
             if _vm.host not in host_dict:

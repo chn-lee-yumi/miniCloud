@@ -1,4 +1,5 @@
-Cloud_CIDR = "10.0.1.0/24"  # 整个云的网段范围
+Cloud_CIDR = "10.0.1.0/24"  # test的VPC网段范围
+Cloud_CIDR_2 = "10.0.2.0/24"  # test2的VPC网段范围
 PASSWORD_SALT = "./s%7fS"  # 密码SHA1前加盐
 CONSOLE_TIMEOUT = 60  # 控制台超时时间
 

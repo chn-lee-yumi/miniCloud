@@ -23,7 +23,11 @@
 # 测试所有服务器的连接并加载ssh指纹
 - name: Test ssh connection
   changed_when: false
-  with_items: "{{groups.all}}"
+  with_items:
+    - "{{groups.management_node}}"
+    - "{{groups.special_node}}"
+    - "{{groups.compute_node}}"
+    - "{{groups.network_node}}"
   ansible.builtin.shell:
     cmd: ssh {{ item }} -o 'StrictHostKeychecking=no' hostname
 # 复制项目代码 (copy is too slow, use synchronize instead)

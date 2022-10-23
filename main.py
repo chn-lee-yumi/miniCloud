@@ -194,7 +194,7 @@ def api_change_tenant():
     user = db.session.query(User).filter_by(name=session['username']).first()
     tenants = user.tenant.split(",")
     args = request.get_json()
-    if args['tenant'] not in tenants:
+    if user.tenant != "ALL" and args['tenant'] not in tenants:
         return "用户没有这个tenant的权限", 403
     session['tenant'] = args['tenant']
     return "", 200
@@ -213,6 +213,9 @@ def api_get_resources():
             remain = 0  # 剩余可创建vm数量
             hosts = db.session.query(Host).filter_by(az=az, arch=FLAVORS[flavor]["arch"], performance=FLAVORS[flavor]["performance"]).all()
             for host in hosts:
+                # 忽略非共享宿主和非自己项目的宿主
+                if host.tenant != "ALL" and host.tenant != session["tenant"]:
+                    continue
                 cpu_available = host.cpu * host.cpu_alloc_ratio
                 mem_available = host.mem * host.mem_alloc_ratio
                 vm_list = db.session.query(VirtualMachine).filter_by(host=host.management_ip).with_entities(VirtualMachine.flavor).all()

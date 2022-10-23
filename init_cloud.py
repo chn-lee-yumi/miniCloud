@@ -26,22 +26,35 @@ with app.app_context():
     db.session.commit()
     print("create_vpc")
     print(create_vpc(name="test_vpc", cidr=Cloud_CIDR, tenant="test"))
-    # print(create_vpc(name="test2_vpc", cidr="192.168.1.0/24", tenant="test2"))
+    print(create_vpc(name="test2_vpc", cidr=Cloud_CIDR_2, tenant="test2"))
     print("add_gateway")
     for node in config.network_nodes:
         node = node_infos[node]
-        print(add_gateway(node["inventory_hostname"], node["internet_ip"],
-                          node["inventory_hostname"], node["inventory_hostname"],
-                          node["bandwidth"], description=node["description"]))
+        print(add_gateway(management_ip=node["inventory_hostname"],
+                          internet_ip=node["internet_ip"],
+                          service_ip=node["inventory_hostname"],
+                          internet_inner_ip=node["inventory_hostname"],
+                          bandwidth=node["bandwidth"],
+                          description=node["description"],
+                          tenant=node["tenant"]))
     print("add_special_node")
     for node in config.special_nodes:
         node = node_infos[node]
-        print(add_special_node(node["inventory_hostname"], node["inventory_hostname"], node["role"]))
+        print(add_special_node(management_ip=node["inventory_hostname"],
+                               service_ip=node["inventory_hostname"],
+                               role=node["role"]))
     print("add_host")
     for node in config.compute_nodes:
         node = node_infos[node]
-        print(add_host(node["inventory_hostname"], node["inventory_hostname"], node["az"],
-                       node["arch"], node["performance"], node["cpu"], node["cpu_alloc_ratio"],
-                       node["mem"], node["mem_alloc_ratio"]))
+        print(add_host(management_ip=node["inventory_hostname"],
+                       service_ip=node["inventory_hostname"],
+                       az=node["az"],
+                       arch=node["arch"],
+                       performance=node["performance"],
+                       cpu=node["cpu"],
+                       cpu_alloc_ratio=node["cpu_alloc_ratio"],
+                       mem=node["mem"],
+                       mem_alloc_ratio=node["mem_alloc_ratio"],
+                       tenant=node["tenant"]))
     print("create_subnet")
     print(create_subnet(26))
