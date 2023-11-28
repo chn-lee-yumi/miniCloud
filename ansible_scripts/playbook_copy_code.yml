@@ -1,0 +1,5 @@
+- name: Copy code
+  hosts: management_node
+  tasks:
+    # 初始化数据库和机器
+    - include_tasks: tasks/copy_code.yml

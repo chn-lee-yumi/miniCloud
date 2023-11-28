@@ -1,5 +1,6 @@
+"""这个文件是模板渲染的，请勿手动修改。放在这里只是方便代码编写。"""
+
 Cloud_CIDR = "10.0.1.0/24"  # test的VPC网段范围
-Cloud_CIDR_2 = "10.0.2.0/24"  # test2的VPC网段范围
 PASSWORD_SALT = "./s%7fS"  # 密码SHA1前加盐
 CONSOLE_TIMEOUT = 60  # 控制台超时时间
 

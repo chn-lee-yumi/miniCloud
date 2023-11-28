@@ -108,3 +108,9 @@ ip addr add {gateway_ip}/{mask} dev br0
 | table=50 | priority=0  |                                                    | actions="resubmit(,60)"                                                                                                                                                                                                                                                                     | 默认流                                                  |
 | table=60 | priority=0  |                                                    | actions="clone(resubmit(vxlan-sw,50)),vxlan-sw"                                                                                                                                                                                                                                             | 普通节点，复制一个包修改in_port到50表（发到本地的端口），同时发送到switch         |
 | table=60 | priority=10 |                                                    | actions=all                                                                                                                                                                                                                                                                                 | switch节点，广播到除入接口外所有接口 (flood其实也行，因为目前端口没有配置no-flood) |
+
+## 流表追踪命令
+
+```shell
+ovs-appctl ofproto/trace br0 icmp,dl_src=02:2e:bd:7e:ad:c0,dl_dst=12:16:3e:ad:c6:f6,nw_src=192.168.20.10,nw_dst=114.114.114.114
+```

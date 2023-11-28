@@ -1,0 +1,14 @@
+# 复制项目代码 (copy is too slow, use synchronize instead)
+- name: Copy code
+  ansible.builtin.synchronize:
+    src: ../../miniCloud
+    dest: /home/{{ ansible_user }}/
+    rsync_opts:
+      - "--exclude=ansible_scripts"
+# 复制项目配置
+- name: Copy config
+  ansible.builtin.template:
+    src: configs/config.py
+    dest: /home/{{ ansible_user }}/miniCloud/config.py
+    mode: 0644
+    owner: "{{ ansible_user }}"

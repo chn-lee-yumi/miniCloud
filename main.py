@@ -1,4 +1,3 @@
-import copy
 import json
 import os
 import threading
@@ -12,12 +11,13 @@ from flask_sock import Sock
 from sqlalchemy import or_
 
 from config import *
-from controller import create_vm, delete_vm, start_vm, shutdown_vm, create_nat, delete_nat, create_subnet, delete_subnet, refresh_flow_table
+from controller import create_vm, delete_vm, start_vm, shutdown_vm, create_nat, delete_nat, create_subnet, delete_subnet
 from database import *
+from net_manager import refresh_flow_table
 from utils import *
 
 app = Flask(__name__)
-app.secret_key = b'_5#y212\rfaL"F4aQ8asdfn\xec]/'
+app.secret_key = b'_5#y212\rfaL"F4aQ8ad\xec]/'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///miniCloud3.db'
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
 sock = Sock(app)

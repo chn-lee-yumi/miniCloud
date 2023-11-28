@@ -5,7 +5,7 @@
   become_method: sudo
   changed_when: false
   ignore_errors: true
-  ansible.builtin.command:
+  ansible.builtin.shell:
     cmd: lxc remote add miniCloud {{ groups['compute_master_node'][0] }} --accept-certificate --password {{ cluster_password }} && lxc remote switch miniCloud
 # 检查存储池是否已创建
 - name: Check if storage pool exists

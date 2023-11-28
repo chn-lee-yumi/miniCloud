@@ -1,3 +1,4 @@
+import copy
 import hashlib
 import logging
 import subprocess
@@ -5,6 +6,7 @@ import subprocess
 import IPy
 
 from config import PASSWORD_SALT
+from database import db
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -48,7 +50,7 @@ def get_tun_id(subnet_uuid: str):
 
 
 def int_to_mask(mask_int):
-    bin_arr = ['0' for i in range(32)]
+    bin_arr = ['0' for _ in range(32)]
     for i in range(mask_int):
         bin_arr[i] = '1'
     mask = [''.join(bin_arr[i * 8:i * 8 + 8]) for i in range(4)]
@@ -69,6 +71,52 @@ def sha1(string):
 
 def password_hash(password):
     return sha1(password + PASSWORD_SALT)
+
+
+def get_list(obj):
+    """
+    获取对象列表
+    :param obj: 对象名字（可以是列表）
+    :return: 对象属性字典的列表
+    """
+
+    def _get_list(_obj):
+        _list = []
+        _all = db.session.query(_obj).all()
+        for _item in _all:
+            _dict = copy.copy(_item.__dict__)
+            for _key in list(_item.__dict__.keys()):
+                if _key.startswith("_"):
+                    del _dict[_key]  # 删除内部属性
+            _list.append(_dict)
+        return _list
+
+    if type(obj) == list:
+        result_list = []
+        for o in obj:
+            result_list.extend(_get_list(o))
+    else:
+        result_list = _get_list(obj)
+    return result_list
+
+
+def get_list_raw(obj):
+    """
+    获取对象列表
+    :param obj: 对象名字（可以是列表）
+    :return: 对象列表
+    """
+
+    def _get_list(_obj):
+        return db.session.query(_obj).all()
+
+    if type(obj) == list:
+        result_list = []
+        for o in obj:
+            result_list.extend(_get_list(o))
+    else:
+        result_list = _get_list(obj)
+    return result_list
 
 
 if __name__ == '__main__':
