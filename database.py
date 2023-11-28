@@ -11,12 +11,16 @@ class User(db.Model):
           password      密码（加盐后SHA1）
           tenant        所属租户，如有多个租户则用逗号分隔，ALL表示有所有租户的权限
           is_admin      是否管理员（可以看到所有租户）
+          cpu_quota     CPU Quota，单位Core，如为-1则不限制
+          mem_quota     内存 Quota，单位MB，如为-1则不限制
     """
     __tablename__ = 'User'
     name = Column(Text, primary_key=True)
     password = Column(Text)
     tenant = Column(Text)
     is_admin = Column(Boolean, default=False)
+    cpu_quota = Column(Integer)
+    mem_quota = Column(Integer)
 
 
 class Tenant(db.Model):

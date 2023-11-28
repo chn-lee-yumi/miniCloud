@@ -10,25 +10,25 @@
 
     <h1>迷你云平台(V3.0.0-20231128)</h1>
 
-    <h2>使用说明</h2>
+    <h2>公告</h2>
     <el-card>
-        <div class="text item">SSH端口：22。<strong>需要手动加一条NAT规则才能够从外网访问。</strong></div>
-        <div class="text item">AZ(Available Zone，可用区)：可以看成是一个机房或者一个集群。</div>
+        <div class="text item">创建的虚拟机请勿关机（可以在终端用reboot重启），因为开机功能还没完善。</div>
+        <div class="text item">虚拟机分配的IP地址为私有地址，无法直接从外面访问。如需开放端口，需要手动加NAT规则。</div>
     </el-card>
 
     <h2>用户信息</h2>
     <el-card :data="userInfo">
-        <div class="text item"><strong>用户名: </strong>{{ userInfo.name }}
+        <el-row class="text item"><strong>你好，{{ userInfo.name }}！</strong>
             <el-tag type="info" size="small" v-if="userInfo.is_admin">管理员</el-tag>
-        </div>
-        <div class="text item"><strong>当前Tenant: </strong>
+        </el-row>
+        <el-row class="text item" style="margin-top: 6px;"><strong>当前 Tenant: </strong>
             <el-select size="small" v-model="userInfo.current_tenant" @change="changeTenant">
                 <el-option v-for="tenant in userInfo.tenants" :value="tenant"></el-option>
             </el-select>
-        </div>
-        <div class="text item"><strong>
+        </el-row>
+        <el-row class="text item"><strong>
             <el-link type="warning" href="/logout">Click here to logout. (退出登录)</el-link>
-        </strong></div>
+        </strong></el-row>
     </el-card>
 
     <h2>可用资源</h2>
@@ -41,10 +41,23 @@
         <el-table-column prop="mem" label="内存大小（MB）"></el-table-column>
         <el-table-column prop="remain" label="可创建实例数量"></el-table-column>
     </el-table>
+    <el-row class="text item">
+        <strong>你的资源额度：</strong>
+        <span>CPU：</span>
+        <el-tag type="primary" size="small">
+            <span v-if="userInfo.cpu_quota==-1">Unlimited</span><span v-else>{{ userInfo.cpu_quota }} 核</span>
+        </el-tag>
+        <span>，已用 <el-tag type="primary" size="small">{{ userInfo.cpu_used }} 核</el-tag>；</span>
+        <span>内存：</span>
+        <el-tag type="primary" size="small">
+            <span v-if="userInfo.mem_quota==-1">Unlimited</span><span v-else>{{ userInfo.mem_quota }} MB</span>
+        </el-tag>
+        <span>，已用 <el-tag type="primary" size="small">{{ userInfo.mem_used }} MB</el-tag>。</span>
+    </el-row>
 
     <h2>虚拟机列表</h2>
     <el-table :data="vmList" style="width: 100%">
-        <el-table-column prop="uuid" label="ID"></el-table-column>
+        <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
         <el-table-column prop="instance_name" label="虚拟机名字"></el-table-column>
         <el-table-column prop="ip" label="IP"></el-table-column>
         <el-table-column prop="gateway" label="出口IP"></el-table-column>
@@ -55,9 +68,22 @@
         <el-table-column prop="stage" label="状态"></el-table-column>
         <el-table-column label="操作">
             <template slot-scope="scope">
-                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="打开网页版控制台" placement="top">
+                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="打开网页版控制台" placement="top" style="margin: 0">
                     <el-button circle type="info" size="small" icon="el-icon-link"
                                @click="openUrl('/static/console.html?instance='+scope.row.instance_name)"></el-button>
+                </el-tooltip>
+                <!--<el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="开机" placement="top" style="margin: 0">
+                    <el-button circle type="primary" size="small" icon="el-icon-video-play" @click="startVM(scope.row.uuid)"></el-button>
+                </el-tooltip>
+                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="关机" placement="top" style="margin: 0">
+                    <el-button circle type="warning" size="small" icon="el-icon-close" @click="shutdownVM(scope.row.uuid)"></el-button>
+                </el-tooltip>
+                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="重启" placement="top" style="margin: 0">
+                    <el-button circle type="warning" size="small" icon="el-icon-refresh" @click="rebootVM(scope.row.uuid)"></el-button>
+                </el-tooltip>-->
+                <el-tooltip v-if="scope.row.stage=='OK' || scope.row.stage.includes('ERROR')" class="item" effect="dark" content="删除虚拟机"
+                            placement="top" style="margin: 0">
+                    <el-button circle type="danger" size="small" icon="el-icon-delete" @click="deleteVM(scope.row.uuid)"></el-button>
                 </el-tooltip>
             </template>
         </el-table-column>
@@ -83,7 +109,7 @@
         <el-table-column prop="description" label="描述"></el-table-column>
     </el-table>
 
-    <h2>子网列表</h2>
+    <h2 v-if="userInfo.is_admin">子网列表</h2>
     <el-table :data="subnetList" style="width: 100%">
         <el-table-column prop="uuid" label="ID"></el-table-column>
         <el-table-column prop="cidr" label="CIDR"></el-table-column>
@@ -110,15 +136,15 @@
             </el-select>
             <el-button type="primary" @click="createInstance">创建</el-button>
         </el-form-item>
-        <el-form-item label="创建SSH登录用户">
+        <!--<el-form-item label="创建SSH登录用户">
             <el-switch v-model="formCreateInstance.enableSSH"></el-switch>
             <el-input style="width:150px" v-if="formCreateInstance.enableSSH" v-model="formCreateInstance.username" placeholder="用户名"></el-input>
             <el-input style="width:900px" v-if="formCreateInstance.enableSSH" v-model="formCreateInstance.pubkey"
                       placeholder="登录公钥：请输入ssh-rsa开头的公钥，如ssh-rsa AAAAB3NzaC1..."></el-input>
-        </el-form-item>
+        </el-form-item>-->
     </el-form>
 
-    <h2>虚拟机管理</h2>
+    <!--<h2>虚拟机管理</h2>
     <el-form :inline="true" :model="formManageInstance">
         <el-form-item label="虚拟机ID">
             <el-input style="width:300px" v-model="formManageInstance.vm_uuid" placeholder="虚拟机ID"></el-input>
@@ -129,21 +155,21 @@
         <el-form-item>
             <el-button type="danger" @click="optInstance('shutdown')">关机</el-button>
         </el-form-item>
-        <!--        <el-form-item>-->
-        <!--            <el-button type="warning" @click="optInstance('reboot')">重启</el-button>-->
-        <!--        </el-form-item>-->
-        <!--        <el-form-item label="修改出口IP">-->
-        <!--            <el-select v-model="formManageInstance.gateway_internet_ip" placeholder="出口IP">-->
-        <!--                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>-->
-        <!--            </el-select>-->
-        <!--        </el-form-item>-->
-        <!--        <el-form-item>-->
-        <!--            <el-button type="warning" @click="optInstance('setGateway')">确定修改</el-button>-->
-        <!--        </el-form-item>-->
+        <el-form-item>
+            <el-button type="warning" @click="optInstance('reboot')">重启</el-button>
+        </el-form-item>
+        <el-form-item label="修改出口IP">
+            <el-select v-model="formManageInstance.gateway_internet_ip" placeholder="出口IP">
+                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="warning" @click="optInstance('setGateway')">确定修改</el-button>
+        </el-form-item>
         <el-form-item>
             <el-button type="danger" @click="optInstance('delete')">删除虚拟机</el-button>
         </el-form-item>
-    </el-form>
+    </el-form>-->
 
     <h2>端口映射（NAT）管理</h2>
     <el-form :inline="true" :model="formCreateNat">
@@ -184,8 +210,8 @@
         </el-form-item>
     </el-form>
 
-    <h2>子网管理</h2>
-    <el-form :inline="true" :model="formCreateSubnet">
+    <h2 v-if="userInfo.is_admin">子网管理</h2>
+    <el-form :inline="true" :model="formCreateSubnet" v-if="userInfo.is_admin">
         <el-form-item label="创建子网">
             <el-input v-model="formCreateSubnet.mask" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="子网掩码长度，如24"></el-input>
         </el-form-item>
@@ -357,6 +383,26 @@ new Vue({
                     console.log(response);
                     if (response['status'] != 201) alert(response['data']);
                     else alert("创建成功！");
+                    that.updateStatus();
+                })
+                .
+            catch(function(error) {
+                    console.log(error);
+                    alert(error.response['data']);
+                })
+                .
+            finally(function() {
+                that.loading = false;
+            })
+        },
+        deleteVM(uuid) {
+            this.loading = true;
+            var that = this;
+            axios.delete('/api/vm/' + uuid)
+                .then(function(response) {
+                    console.log(response);
+                    if (response['status'] != 204) alert(response['data']);
+                    else alert("执行成功！");
                     that.updateStatus();
                 })
                 .
@@ -541,5 +587,8 @@ new Vue({
         },
     }
 })
+
+
+
 </script>
 </html>

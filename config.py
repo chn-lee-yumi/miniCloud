@@ -5,35 +5,55 @@ PASSWORD_SALT = "./s%7fS"  # 密码SHA1前加盐
 CONSOLE_TIMEOUT = 60  # 控制台超时时间
 
 # 虚拟机规格配置
+# FLAVORS = {
+#     "a1.small": {
+#         "performance": 1,
+#         "cpu": 1,
+#         "mem": 128,
+#         "arch": "arm",
+#     },
+#     "a2.medium": {
+#         "performance": 2,
+#         "cpu": 1,
+#         "mem": 512,
+#         "arch": "arm"
+#     },
+#     "a2.large": {
+#         "performance": 2,
+#         "cpu": 2,
+#         "mem": 1024,
+#         "arch": "arm"
+#     },
+#     "x2.medium": {
+#         "performance": 2,
+#         "cpu": 1,
+#         "mem": 512,
+#         "arch": "x86"
+#     },
+#     "x2.large": {
+#         "performance": 2,
+#         "cpu": 2,
+#         "mem": 1024,
+#         "arch": "x86"
+#     },
+# }
 FLAVORS = {
-    "a1.small": {
+    "x1.small": {
         "performance": 1,
         "cpu": 1,
-        "mem": 128,
-        "arch": "arm",
-    },
-    "a2.medium": {
-        "performance": 2,
-        "cpu": 1,
-        "mem": 512,
-        "arch": "arm"
-    },
-    "a2.large": {
-        "performance": 2,
-        "cpu": 2,
-        "mem": 1024,
-        "arch": "arm"
-    },
-    "x2.medium": {
-        "performance": 2,
-        "cpu": 1,
-        "mem": 512,
+        "mem": 2048,
         "arch": "x86"
     },
-    "x2.large": {
-        "performance": 2,
+    "x1.medium": {
+        "performance": 1,
         "cpu": 2,
-        "mem": 1024,
+        "mem": 4096,
+        "arch": "x86"
+    },
+    "x1.large": {
+        "performance": 1,
+        "cpu": 3,
+        "mem": 6144,
         "arch": "x86"
     },
 }

@@ -7,6 +7,7 @@ from functools import wraps
 
 import simple_websocket
 from flask import Flask, session, redirect, url_for, request, jsonify
+from flask_oidc import OpenIDConnect
 from flask_sock import Sock
 from sqlalchemy import or_
 
@@ -24,6 +25,22 @@ sock = Sock(app)
 db.init_app(app)
 console_session_map = {}  # 控制台的连接字典，key为连接id，value为连接空闲时间，超过1分钟就断掉。
 
+# OIDC相关配置
+ENABLE_OIDC = True
+if ENABLE_OIDC:
+    app.config.update({
+        'TESTING': True,
+        'DEBUG': True,
+        'OIDC_INTROSPECTION_AUTH_METHOD': 'client_secret_post',
+        'OIDC_TOKEN_TYPE_HINT': 'access_token',
+        'OIDC_CLIENT_SECRETS': 'client_secrets.json',
+        'OIDC_OPENID_REALM': 'nic',
+        'OIDC-SCOPES': ['openid']
+    })
+    oidc = OpenIDConnect(app)
+    DEFAULT_OIDC_TENANT = "playground"
+    OIDC_ADMIN_GROUP = "/GDUTNIC/NIC-Tech/NIC-Develop"
+
 
 def login_required(func):
     """需要先登录的装饰器"""
@@ -32,8 +49,25 @@ def login_required(func):
     def decorated_view(*args, **kwargs):
         if "username" in session:
             return func(*args, **kwargs)
+        if ENABLE_OIDC and oidc.user_loggedin:
+            session["username"] = session['oidc_auth_profile']["name"]
+            user = db.session.query(User).filter_by(name=session["username"]).first()
+            if not user:  # 用户不存在，则创建用户
+                if OIDC_ADMIN_GROUP in session['oidc_auth_profile']["group-membership"]:  # 管理员
+                    db.session.add(User(
+                        name=session["username"], password="", tenant="ALL",
+                        is_admin=True, cpu_quota=-1, mem_quota=-1
+                    ))
+                else:  # 普通用户
+                    db.session.add(User(
+                        name=session["username"], password="", tenant=DEFAULT_OIDC_TENANT,
+                        is_admin=False, cpu_quota=3, mem_quota=1024 * 6  # TODO: 这里的默认quota暂时写死
+                    ))
+                db.session.commit()
+            session["tenant"] = DEFAULT_OIDC_TENANT
+            return func(*args, **kwargs)
         else:
-            return "请先登录", 403
+            return redirect(url_for('login'))
 
     return decorated_view
 
@@ -105,6 +139,23 @@ def monitor_websocket(p, ws, session_id):
     ws.close()
 
 
+def get_user_cpu_mem_usage(user):
+    # 计算CPU核内存使用量
+    cpu_used = 0
+    mem_used = 0
+    for vm in db.session.query(VirtualMachine).filter_by(create_user=user.name).all():
+        cpu_used += FLAVORS[vm.flavor]["cpu"]
+        mem_used += FLAVORS[vm.flavor]["mem"]
+    return cpu_used, mem_used
+
+
+@app.route('/api/auth', methods=['GET'])
+@login_required
+def api_auth():
+    """OAuth 2.0 protected API endpoint accessible via AccessToken"""
+    return json.dumps(session['oidc_auth_profile'])
+
+
 # socket 路由，访问url是： ws://localhost:5000/console
 @sock.route('/console/<instance>')
 def socket_console(ws, instance):
@@ -139,14 +190,14 @@ def socket_console(ws, instance):
 
 
 @app.route('/')
+@login_required
 def index():
-    if 'username' in session:
-        return app.send_static_file("index.html")
-    return redirect(url_for('login'))
+    return app.send_static_file("index.html")
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """OIDC会覆盖此函数"""
     if request.method == 'POST':
         user = db.session.query(User).filter_by(name=request.form['username']).first()
         if not user:  # 用户不存在
@@ -169,8 +220,9 @@ def login():
 
 @app.route('/logout')
 def logout():
+    """OIDC会覆盖此函数，并且目前OIDC的logout有问题，无法成功logout"""
     session.pop('username', None)
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
 
 
 @app.route('/api/user_info')
@@ -184,7 +236,12 @@ def api_user_info():
         tenants = list(map(lambda i: i[0], db.session.query(Tenant.name).all()))
     else:
         tenants = user.tenant.split(",")
-    return jsonify({"name": user.name, "is_admin": user.is_admin, "current_tenant": session['tenant'], "tenants": tenants})
+    cpu_used, mem_used = get_user_cpu_mem_usage(user)
+    return jsonify({
+        "name": user.name, "is_admin": user.is_admin, "current_tenant": session['tenant'], "tenants": tenants,
+        "cpu_quota": user.cpu_quota, "mem_quota": user.mem_quota,
+        "cpu_used": cpu_used, "mem_used": mem_used,
+    })
 
 
 @app.route('/api/change_tenant', methods=['POST'])
@@ -235,6 +292,11 @@ def api_get_vm_list():
     vm_list = get_list(VirtualMachine)
     for vm in vm_list:
         vm["az"] = db.session.query(Host).filter_by(management_ip=vm["host"]).first().az
+    user = db.session.query(User).filter_by(name=session['username']).first()
+    if not user.is_admin:  # 只显示自己的虚拟机
+        for vm in vm_list.copy():
+            if vm["create_user"] != user.name:
+                vm_list.remove(vm)
     return jsonify(vm_list)
 
 
@@ -244,6 +306,15 @@ def api_create_vm():
     param = request.get_json()
     if param["enableSSH"] and not param["pubkey"].startswith("ssh-rsa "):
         return "公钥需要以ssh-rsa 开头！", 400
+    # 检查Quota
+    user = db.session.query(User).filter_by(name=session['username']).first()
+    cpu_used, mem_used = get_user_cpu_mem_usage(user)
+    cpu = FLAVORS[param["flavor"]]["cpu"]
+    mem = FLAVORS[param["flavor"]]["mem"]
+    if cpu_used + cpu > user.cpu_quota and user.cpu_quota != -1:
+        return "你的 CPU Quota 不足！", 400
+    if mem_used + mem > user.mem_quota and user.mem_quota != -1:
+        return "你的 内存 Quota 不足！", 400
     msg = create_vm(
         subnet_uuid=param["subnet"], gateway_internet_ip=param["gateway"], flavor=param["flavor"], os=param["os"],
         instance_name=param["instance_name"], username=param["username"], is_enable_ssh=param["enableSSH"], pubkey=param["pubkey"],
@@ -349,6 +420,9 @@ def api_get_subnet_list():
 @app.route('/api/subnet', methods=['POST'])
 @login_required
 def api_create_subnet():
+    user = db.session.query(User).filter_by(name=session["username"]).first()
+    if not user.is_admin:
+        return "仅管理员可调用该API", 403
     param = json.loads(request.get_data(as_text=True))
     # TODO: 支持一个tenant对应多个VPC
     vpc = db.session.query(VPC).filter_by(tenant=session["tenant"]).first()
@@ -361,6 +435,9 @@ def api_create_subnet():
 @app.route('/api/subnet/<subnet_uuid>', methods=['DELETE'])
 @login_required
 def api_delete_subnet(subnet_uuid):
+    user = db.session.query(User).filter_by(name=session["username"]).first()
+    if not user.is_admin:
+        return "仅管理员可调用该API", 403
     subnet = db.session.query(Subnet).filter_by(uuid=subnet_uuid).first()
     if session["tenant"] != subnet.tenant:
         return "subnet不在此tenant，请切换到对应tenant再试", 403
@@ -407,4 +484,4 @@ def api_refresh_flow_table_gateway(ip):
 
 if __name__ == '__main__':
     init()
-    app.run(port=5000, host="0.0.0.0")
+    app.run(port=8080, host="0.0.0.0")

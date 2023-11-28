@@ -21,7 +21,7 @@ vpc = "playground_vpc"
 
 with app.app_context():
     db.create_all()
-    db.session.add(User(name="admin", password=password_hash("admin@miniCloud3"), tenant="ALL", is_admin=True))
+    db.session.add(User(name="admin", password=password_hash("admin@miniCloud3"), tenant="ALL", is_admin=True, cpu_quota=-1, mem_quota=-1))
     # db.session.add(User(name="test", password=password_hash("test"), tenant="test"))
     # db.session.add(User(name="test2", password=password_hash("test2"), tenant="test2"))
     # db.session.add(User(name="test3", password=password_hash("test3"), tenant="test,test2"))
