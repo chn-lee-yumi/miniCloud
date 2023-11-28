@@ -2,7 +2,7 @@ config:
   core.trust_password: "{{ cluster_password }}"
   core.https_address: "{{ inventory_hostname }}:8443"
   images.auto_update_interval: "0"
-{% if inventory_hostname == groups['management_node'][0] -%}
+{% if inventory_hostname == groups['compute_master_node'][0] -%}
 profiles:
   - config:
       cloud-init.network-config: |
@@ -18,13 +18,18 @@ profiles:
                 gateway: 10.0.5.1
                 control: auto
           - type: nameserver
-            address: 114.114.114.114
+            address: {{ dns_server }}
       cloud-init.user-data: |
         #cloud-config
         users:
-          - name: yumi
+          - name: liyumin
             ssh_authorized_keys:
               - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC8FyT+xGDolRFTfAhZtA9XTds+EgzJaetfmBYtp+mxIiE3PUJnMUZs4o9IOM0J+biaaz56Oh1fV8QiZMbdLU9lLh5yvMI3Y7t9IIVvDewJXdafCRpbSjN91XeG5klmyNwANb+p8reQvUDewPiBUGobuMeG4Mh2Eu+vlZ5uSBPSarcfqR5INLi3zLWV8KHMsIuJgI1x9L5jrSNu47SeSuxOqsJto+Ck66t3/MlfTN/VGYhVrPek5LyhfkMMzWpy/QiCZ5A4Kvv1ZkTdahK783edX6vkG4vDD2wJwtsNiBscR1C5T6H/PxOTi7NOFV9MVMEU4v13x10p8kjCTEskm2n9 yumi
+            sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]
+            shell: /bin/bash
+          - name: gregPerlinLi
+            ssh_authorized_keys:
+              - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC4OzKqhs6n7MASHWp+8p1NpL46meJLbsOCm23+y9Yeba36fq3kbPrBvu5XVhctL8VPl/ri2L3JMKA/OJUQV1j9hmSZWCN1Xxo+lOJK/a+D+9cT0bFQXjkXgfrowcTShR8ECEkQUStZgJ6VDaBy3Qmu7NerAsJ9exYdukzshhyVQve5NxAXz/KWkW3TnFF5zTlCdjAkwyCPDjCanWP+fE41/vhrml440gllk4RxX6IQvOApLttS3k08CU54w/2kJQ8MVwkaodeELAonI1TcEX4TgpU8tS9WiYfPlRUfw00fqiFgGHdNB6THqIR/vB7Cmz5bQ3VKy5WZ7hWZNOaPnwZ9skHgkFYL/VWvkLPfrrXXmYKdkED6mM6WD3Yc522dj2zDcMiLc2Fjb9AZSu9y+WcHYk3BcRFKX6GVLmcDdBxn/Cs9rvnxfAduH1vpTsSqocwu1/t5bmaeYiTIxoR4T+RTmC5AEkuzLLC8plOyospko0pJEdS+OGJYPn9BrlcTNR0= gregPerlinLi
             sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]
             shell: /bin/bash
     description: vm template
@@ -45,9 +50,9 @@ projects: []
 cluster:
   server_name: "{{ inventory_hostname }}"
   enabled: true
-  {% if inventory_hostname != groups['management_node'][0] -%}
-  cluster_address: "{{ groups['management_node'][0] }}:8443"
-  cluster_certificate: "{{ hostvars[groups['management_node'][0]].cluster_cert }}"
+  {% if inventory_hostname != groups['compute_master_node'][0] -%}
+  cluster_address: "{{ groups['compute_master_node'][0] }}:8443"
+  cluster_certificate: "{{ hostvars[groups['compute_master_node'][0]].cluster_cert }}"
   server_address: "{{ inventory_hostname }}:8443"
   cluster_password: "{{ cluster_password }}"
   {%- endif %}

@@ -10,13 +10,15 @@ v2.0版本和v1.0版本相比和有较大改动。完善了一些功能，将vir
 
 ## 部署文档
 
-机器系统使用Ubuntu。然后用ansible进行部署。
+机器系统使用Ubuntu。然后用ansible进行部署。需要注意`/mnt/`需要为`btrfs`文件系统（计算节点需要此操作）。
 
 节点分四类：`管理节点`、`网关节点`、`计算节点`、`特殊节点`。`特殊节点`目前包含`交换节点`。 目前`管理节点`和`交换节点`可以合并在同一台机器上。
 
 将节点信息写到一个ini中，可以参考`ansible_scripts/server_list_test.ini`和`ansible_scripts/server_list_prod.ini`。
 
 切换到`ansible_scripts`目录下，执行`ansible-playbook -i server_list_test.ini playbook_init_cluster.yml`即可完成部署。
+
+如果遇到部署过程中LXD卡住的情况，先执行`playbook_clean_cluster.yml`，然后重启所有LXD服务器，再执行`playbook_init_cluster.yml`。
 
 要使用前端和API，执行`python3 main.py`即可。
 

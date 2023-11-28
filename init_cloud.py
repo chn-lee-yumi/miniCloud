@@ -6,27 +6,31 @@ import config
 from controller import *
 
 # 如果已经存在数据库，就跳过初始化
-if os.path.exists("miniCloud2.db") and os.path.exists("instance/miniCloud2.db"):
+if os.path.exists("miniCloud3.db") or os.path.exists("instance/miniCloud3.db"):
     print("集群已存在数据库，跳过初始化")
     exit()
 
 print("集群没有数据库，开始初始化")
 app = flask.Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///miniCloud2.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///miniCloud3.db'
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
 db.init_app(app)
+
+tenant = "playground"
+vpc = "playground_vpc"
+
 with app.app_context():
     db.create_all()
-    db.session.add(User(name="admin", password=password_hash("admin@miniCloud2"), tenant="ALL", is_admin=True))
-    db.session.add(User(name="test", password=password_hash("test"), tenant="test"))
-    db.session.add(User(name="test2", password=password_hash("test2"), tenant="test2"))
-    db.session.add(User(name="test3", password=password_hash("test3"), tenant="test,test2"))
-    db.session.add(Tenant(name="test"))
-    db.session.add(Tenant(name="test2"))
+    db.session.add(User(name="admin", password=password_hash("admin@miniCloud3"), tenant="ALL", is_admin=True))
+    # db.session.add(User(name="test", password=password_hash("test"), tenant="test"))
+    # db.session.add(User(name="test2", password=password_hash("test2"), tenant="test2"))
+    # db.session.add(User(name="test3", password=password_hash("test3"), tenant="test,test2"))
+    db.session.add(Tenant(name=tenant))
+    # db.session.add(Tenant(name="test2"))
     db.session.commit()
     print("create_vpc")
-    print(create_vpc(name="test_vpc", cidr=Cloud_CIDR, tenant="test"))
-    print(create_vpc(name="test2_vpc", cidr=Cloud_CIDR_2, tenant="test2"))
+    print(create_vpc(name=vpc, cidr=Cloud_CIDR, tenant=tenant))
+    # print(create_vpc(name="test2_vpc", cidr=Cloud_CIDR_2, tenant="test2"))
     print("add_gateway")
     for node in config.network_nodes:
         node = node_infos[node]
@@ -57,4 +61,5 @@ with app.app_context():
                        mem_alloc_ratio=node["mem_alloc_ratio"],
                        tenant=node["tenant"]))
     print("create_subnet")
-    print(create_subnet(26))
+    print(create_subnet(25, vpc))
+    print(create_subnet(25, vpc))

@@ -34,19 +34,19 @@ fi
 ubuntu_mirror="apt:
   primary:
     - arches: [default]
-      uri: http://mirrors.tuna.tsinghua.edu.cn/ubuntu
+      uri: http://mirrors.gdut.edu.cn/ubuntu
 "
 
 ubuntu_ports_mirror="apt:
   primary:
     - arches: [default]
-      uri: http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports
+      uri: http://mirrors.gdut.edu.cn/ubuntu-ports
 "
 
 debian_mirror="apt:
   primary:
     - arches: [default]
-      uri: http://mirrors.tuna.tsinghua.edu.cn/debian
+      uri: http://mirrors.gdut.edu.cn/debian
 "
 
 # TODO: centos
@@ -67,9 +67,14 @@ lxc profile set $name cloud-init.user-data "#cloud-config
 packages: ['openssh-server']
 ${mirror_config}
 users:
-  - name: yumi
+  - name: liyumin
     ssh_authorized_keys:
       - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC8FyT+xGDolRFTfAhZtA9XTds+EgzJaetfmBYtp+mxIiE3PUJnMUZs4o9IOM0J+biaaz56Oh1fV8QiZMbdLU9lLh5yvMI3Y7t9IIVvDewJXdafCRpbSjN91XeG5klmyNwANb+p8reQvUDewPiBUGobuMeG4Mh2Eu+vlZ5uSBPSarcfqR5INLi3zLWV8KHMsIuJgI1x9L5jrSNu47SeSuxOqsJto+Ck66t3/MlfTN/VGYhVrPek5LyhfkMMzWpy/QiCZ5A4Kvv1ZkTdahK783edX6vkG4vDD2wJwtsNiBscR1C5T6H/PxOTi7NOFV9MVMEU4v13x10p8kjCTEskm2n9 yumi
+    sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]
+    shell: /bin/bash
+  - name: gregPerlinLi
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC4OzKqhs6n7MASHWp+8p1NpL46meJLbsOCm23+y9Yeba36fq3kbPrBvu5XVhctL8VPl/ri2L3JMKA/OJUQV1j9hmSZWCN1Xxo+lOJK/a+D+9cT0bFQXjkXgfrowcTShR8ECEkQUStZgJ6VDaBy3Qmu7NerAsJ9exYdukzshhyVQve5NxAXz/KWkW3TnFF5zTlCdjAkwyCPDjCanWP+fE41/vhrml440gllk4RxX6IQvOApLttS3k08CU54w/2kJQ8MVwkaodeELAonI1TcEX4TgpU8tS9WiYfPlRUfw00fqiFgGHdNB6THqIR/vB7Cmz5bQ3VKy5WZ7hWZNOaPnwZ9skHgkFYL/VWvkLPfrrXXmYKdkED6mM6WD3Yc522dj2zDcMiLc2Fjb9AZSu9y+WcHYk3BcRFKX6GVLmcDdBxn/Cs9rvnxfAduH1vpTsSqocwu1/t5bmaeYiTIxoR4T+RTmC5AEkuzLLC8plOyospko0pJEdS+OGJYPn9BrlcTNR0= gregPerlinLi
     sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]
     shell: /bin/bash
   - name: $username
@@ -90,14 +95,14 @@ config:
         gateway: $gateway
         control: auto
   - type: nameserver
-    address: 114.114.114.114
+    address: 202.116.128.1
 "
 lxc profile device set $name eth0 host_name=$veth
 
 if [[ -n $target_node ]]; then
-  lxc launch tuna-images:$image $name -p $name --target $target_node
+  lxc launch tuna-images:$image $name -p $name --target $target_node --storage miniCloud
 else
-  lxc launch tuna-images:$image $name -p $name
+  lxc launch tuna-images:$image $name -p $name --storage miniCloud
 fi
 
 if [[ $? != 0 ]]; then

@@ -1,5 +1,5 @@
 # 删除代码
 - name: Delete code
   file:
-    path: /home/cloud/miniCloud
+    path: /home/{{ ansible_user }}/miniCloud
     state: absent

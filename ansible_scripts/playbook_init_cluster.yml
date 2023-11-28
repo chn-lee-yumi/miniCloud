@@ -5,6 +5,7 @@
     - include_tasks: tasks/install_lxd.yml
     # 初始化管理节点
     - include_tasks: tasks/init_management_node.yml
+
 - name: Init special node
   hosts: special_node
   tasks:
@@ -14,6 +15,14 @@
     - include_tasks: tasks/init_ovs.yml
     # 保存SSH公钥
     - include_tasks: tasks/save_ssh_pub_key.yml
+
+- name: Init compute master node
+  hosts: compute_master_node
+  tasks:
+    # 初始化master节点（lxd集群）
+    - include_tasks: tasks/install_lxd.yml
+    - include_tasks: tasks/init_compute_master.yml
+
 - name: Init compute node
   hosts: compute_node
   tasks:
@@ -26,6 +35,7 @@
     - include_tasks: tasks/save_ssh_pub_key.yml
     # 初始化计算节点
     - include_tasks: tasks/init_compute_node.yml
+
 - name: Init network node
   hosts: network_node
   tasks:
@@ -37,6 +47,7 @@
     - include_tasks: tasks/save_ssh_pub_key.yml
     # 初始化网络节点
     - include_tasks: tasks/init_network_node.yml
+
 - name: Init cloud
   hosts: management_node
   tasks:

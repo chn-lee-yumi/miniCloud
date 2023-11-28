@@ -629,7 +629,7 @@ def shutdown_vm(vm_uuid: str):
     if code:
         vm.stage += " ERROR"
         db.session.commit()
-        return 1
+        return "流表更新失败"
     # 删除其它机器的流表
     cmd = TEMPLATE["del-flow-vm"].format(vm_mac=vm.mac)
     cmd += TEMPLATE["del-flow-vm-ip"].format(vm_ip=vm.ip)
@@ -641,7 +641,7 @@ def shutdown_vm(vm_uuid: str):
     if code:
         vm.stage += " ERROR"
         db.session.commit()
-        return 1
+        return "流表更新失败"
     vm.stage = "shutting down machine"
     db.session.commit()
     vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
@@ -650,7 +650,7 @@ def shutdown_vm(vm_uuid: str):
     if code:
         vm.stage += " ERROR"
         db.session.commit()
-        return 1
+        return "关机失败"
     vm.power = 0
     vm.stage = "SHUTDOWN"
     db.session.commit()
@@ -664,7 +664,7 @@ def start_vm(vm_uuid: str):
     :return:
     """
     vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
-    if not vm or vm.power == 1:
+    if not vm or vm.power == 1:  # TODO：可能用户从里面关机了
         return 0
     if vm.stage.find("ERROR") >= 0:
         return "VM状态为ERROR，无法启动。如果是新创建的机器，可以删除重新创建试试。"
@@ -674,20 +674,20 @@ def start_vm(vm_uuid: str):
     if code:
         vm.stage += " ERROR"
         db.session.commit()
-        return 1
+        return "VM启动失败"
     _, stdout, _ = exec_cmd("""sudo lxc config get %s volatile.eth0.hwaddr""" % vm.instance_name)
     vm.mac = stdout.strip()
     vm.stage = "adding flow"
     vm.power = 0
     db.session.commit()
-    # 下发vm网关流表
+    # 下发VM网关流表
     gateway = db.session.query(Gateway).filter_by(internet_ip=vm.gateway).first()
     cmd = TEMPLATE["add-flow-vm-gateway"].format(vm_mac=vm.mac, gateway_service_ip_hex="0x" + ip_to_hex(gateway.service_ip))  # 虚拟机发往哪个网关的流表
     code, _, _ = exec_cmd("ssh %s '%s'" % (vm.host, cmd))
     if code:
         vm.stage += " ERROR"
         db.session.commit()
-        return "下发vm网关流表时报错"
+        return "下发VM网关流表时报错"
     # 给所有机器下发vm流表
     cmd = TEMPLATE["add-flow-vm-remote"].format(vm_mac=vm.mac, subnet_tun_id_hex=get_tun_id(vm.subnet_uuid),
                                                 vm_host_ip_hex="0x" + ip_to_hex(vm.host))  # 到vm的流量

@@ -10,7 +10,7 @@
     cmd: lxc cluster list
 # 复制lxd初始化配置
 - name: Copy LXD config
-  when: "lxc_cluster.rc != 0"
+  # when: "lxc_cluster.rc != 0"
   ansible.builtin.template:
     src: configs/lxd_init.yml
     dest: /home/{{ ansible_user }}/lxd_init.yml
@@ -21,6 +21,20 @@
   become: true
   become_user: root
   become_method: sudo
-  when: "lxc_cluster.rc != 0"
+  changed_when: false
+  # when: "lxc_cluster.rc != 0"
   ansible.builtin.shell:
     cmd: lxd init --preseed < /home/{{ ansible_user }}/lxd_init.yml
+# 获取证书
+- name: Get LXD cluster cert
+  become: true
+  become_user: root
+  become_method: sudo
+  changed_when: false
+  register: cluster_cert
+  ansible.builtin.shell:
+    cmd: sed ':a;N;$!ba;s/\n/\n\n/g' /var/snap/lxd/common/lxd/cluster.crt
+# 保存证书变量
+- name: Save cluster cert into ansible fact
+  ansible.builtin.set_fact:
+    cluster_cert: "{{ cluster_cert.stdout }}"

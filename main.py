@@ -18,7 +18,7 @@ from utils import *
 
 app = Flask(__name__)
 app.secret_key = b'_5#y212\rfaL"F4aQ8asdfn\xec]/'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///miniCloud2.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///miniCloud3.db'
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
 sock = Sock(app)
 db.init_app(app)
@@ -38,8 +38,8 @@ def login_required(func):
     return decorated_view
 
 
-def dict_to_list(data: dict, attr: str):
-    return list(map(lambda i: i[attr], data))
+# def dict_to_list(data: dict, attr: str):
+#     return list(map(lambda i: i[attr], data))
 
 
 def get_list(obj):
@@ -181,7 +181,7 @@ def api_user_info():
     if not user:
         return "", 200
     if user.tenant == "ALL":
-        tenants = dict_to_list(db.session.query(Tenant).with_entities(Tenant.name).all(), "name")
+        tenants = list(map(lambda i: i[0], db.session.query(Tenant.name).all()))
     else:
         tenants = user.tenant.split(",")
     return jsonify({"name": user.name, "is_admin": user.is_admin, "current_tenant": session['tenant'], "tenants": tenants})
@@ -205,7 +205,7 @@ def api_change_tenant():
 def api_get_resources():
     # 返回AZ列表和各AZ不同flavor可创建的机器数量
     resource_list = []
-    az_list = sorted(dict_to_list(db.session.query(Host).with_entities(Host.az).distinct().all(), "az"))
+    az_list = sorted(list(map(lambda i: i[0], db.session.query(Host.az).distinct().all())))
     flavor_list = list(FLAVORS.keys())
     os_list = OS_LIST
     for az in az_list:

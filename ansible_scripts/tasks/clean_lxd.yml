@@ -1,7 +1,7 @@
 # 删除LXD配置
 - name: Delete LXD config
   file:
-    path: /home/cloud/lxd_init.yml
+    path: /home/{{ ansible_user }}/lxd_init.yml
     state: absent
 # 卸载LXD
 - name: Remove LXD
