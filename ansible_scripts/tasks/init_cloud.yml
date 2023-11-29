@@ -15,9 +15,11 @@
     executable: pip3
     extra_args: -i https://pypi.doubanio.com/simple
     name:
+      - drf-httpsig
       - flask
       - flask-sqlalchemy
       - flask-sock
+      - flask_oidc
       - IPy
       - psutil
 # 测试所有服务器的连接并加载ssh指纹
@@ -37,6 +39,7 @@
     dest: /home/{{ ansible_user }}/
     rsync_opts:
       - "--exclude=ansible_scripts"
+      - "--exclude=instance"
 # 复制项目配置
 - name: Copy config
   ansible.builtin.template:

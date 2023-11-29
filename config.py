@@ -69,3 +69,8 @@ special_nodes = []
 compute_nodes = []
 network_nodes = []
 node_infos = {}
+
+# 堡垒机配置
+jms_url = 'https://bastion.gdutnic.com'
+KeyID = 'eeea4547-39a4-46af-9b27-ab6a3fb13f87'
+SecretID = 'a9074ab8-97ed-4ae8-a9c3-f50c0baa4d64'

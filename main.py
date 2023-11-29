@@ -29,8 +29,6 @@ console_session_map = {}  # 控制台的连接字典，key为连接id，value为
 ENABLE_OIDC = True
 if ENABLE_OIDC:
     app.config.update({
-        'TESTING': True,
-        'DEBUG': True,
         'OIDC_INTROSPECTION_AUTH_METHOD': 'client_secret_post',
         'OIDC_TOKEN_TYPE_HINT': 'access_token',
         'OIDC_CLIENT_SECRETS': 'client_secrets.json',
@@ -40,6 +38,7 @@ if ENABLE_OIDC:
     oidc = OpenIDConnect(app)
     DEFAULT_OIDC_TENANT = "playground"
     OIDC_ADMIN_GROUP = "/GDUTNIC/NIC-Tech/NIC-Develop"
+GDUT_MODE = True  # 广工私有云魔改版本
 
 
 def login_required(func):
@@ -50,18 +49,18 @@ def login_required(func):
         if "username" in session:
             return func(*args, **kwargs)
         if ENABLE_OIDC and oidc.user_loggedin:
-            session["username"] = session['oidc_auth_profile']["name"]
+            session["username"] = session['oidc_auth_profile']["preferred_username"]
             user = db.session.query(User).filter_by(name=session["username"]).first()
             if not user:  # 用户不存在，则创建用户
                 if OIDC_ADMIN_GROUP in session['oidc_auth_profile']["group-membership"]:  # 管理员
                     db.session.add(User(
                         name=session["username"], password="", tenant="ALL",
-                        is_admin=True, cpu_quota=-1, mem_quota=-1
+                        is_admin=True, cpu_quota=-1, mem_quota=-1,
                     ))
                 else:  # 普通用户
                     db.session.add(User(
                         name=session["username"], password="", tenant=DEFAULT_OIDC_TENANT,
-                        is_admin=False, cpu_quota=3, mem_quota=1024 * 6  # TODO: 这里的默认quota暂时写死
+                        is_admin=False, cpu_quota=3, mem_quota=1024 * 6,  # TODO: 这里的默认quota暂时写死
                     ))
                 db.session.commit()
             session["tenant"] = DEFAULT_OIDC_TENANT
@@ -293,6 +292,8 @@ def api_get_vm_list():
     for vm in vm_list:
         vm["az"] = db.session.query(Host).filter_by(management_ip=vm["host"]).first().az
     user = db.session.query(User).filter_by(name=session['username']).first()
+    if not user:
+        return "用户不存在", 403
     if not user.is_admin:  # 只显示自己的虚拟机
         for vm in vm_list.copy():
             if vm["create_user"] != user.name:
@@ -304,10 +305,13 @@ def api_get_vm_list():
 @login_required
 def api_create_vm():
     param = request.get_json()
+    # 检查公钥
     if param["enableSSH"] and not param["pubkey"].startswith("ssh-rsa "):
         return "公钥需要以ssh-rsa 开头！", 400
     # 检查Quota
     user = db.session.query(User).filter_by(name=session['username']).first()
+    if not user:
+        return "用户不存在", 403
     cpu_used, mem_used = get_user_cpu_mem_usage(user)
     cpu = FLAVORS[param["flavor"]]["cpu"]
     mem = FLAVORS[param["flavor"]]["mem"]
@@ -315,6 +319,9 @@ def api_create_vm():
         return "你的 CPU Quota 不足！", 400
     if mem_used + mem > user.mem_quota and user.mem_quota != -1:
         return "你的 内存 Quota 不足！", 400
+    # 检查用户名
+    if param["enableSSH"] and session["username"] in ["root", "admin"]:
+        return "用户名不能为%s，请填入其他用户名。后续在服务器中用sudo切到root。" % session["username"]
     msg = create_vm(
         subnet_uuid=param["subnet"], gateway_internet_ip=param["gateway"], flavor=param["flavor"], os=param["os"],
         instance_name=param["instance_name"], username=param["username"], is_enable_ssh=param["enableSSH"], pubkey=param["pubkey"],
@@ -330,6 +337,8 @@ def api_delete_vm(vm_uuid):
     vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
     if session["tenant"] != vm.tenant:
         return "vm不在此tenant，请切换到对应tenant再试", 403
+    if "deleting" in vm.stage and "ERROR" not in vm.stage:
+        return "虚拟机正在删除中！", 200
     msg = delete_vm(vm_uuid)
     if msg:
         return msg, 500
@@ -380,7 +389,15 @@ def api_get_gateway_list():
 @app.route('/api/nat', methods=['GET'])
 @login_required
 def api_get_nat_list():
-    return jsonify(get_list(NAT))
+    nat_list = get_list(NAT)
+    user = db.session.query(User).filter_by(name=session['username']).first()
+    if not user:
+        return "用户不存在", 403
+    if not user.is_admin:  # 只显示自己的虚拟机
+        for nat in nat_list.copy():
+            if nat["create_user"] != user.name:
+                nat_list.remove(nat)
+    return jsonify(nat_list)
 
 
 @app.route('/api/nat', methods=['POST'])
@@ -388,13 +405,33 @@ def api_get_nat_list():
 def api_create_nat():
     param = json.loads(request.get_data(as_text=True))
     print(param)
-    if not param["internet_ip"] or not param["internal_ip"] or not param["protocol"]:
+    internet_ip = param["internet_ip"]
+    internal_ip = param["internal_ip"]
+    external_port = int(param["external_port"])
+    internal_port = int(param["internal_port"])
+    protocol = param["protocol"]
+    if not internet_ip or not internal_ip or not protocol:
         return "请填写完整信息！", 400
-    if int(param["external_port"]) < 9000 or int(param["external_port"]) > 9999:
+    if not 9000 < external_port < 9999:
         return "端口号可用范围：9000-9999。请勿使用范围外的端口。", 403
-    msg = create_nat(internet_ip=param["internet_ip"], internal_ip=param["internal_ip"],
-                     external_port=int(param["external_port"]), internal_port=int(param["internal_port"]),
-                     protocol=param["protocol"], tenant=session["tenant"], create_user=session["username"])
+    if param["protocol"] not in ["udp", "tcp"]:
+        return "协议不是udp或tcp", 400
+    if not (1 <= internal_port <= 65535 or 1 <= external_port <= 65535):
+        return "端口号不在1~65535内", 400
+    query = db.session.query(NAT).filter_by(internet_ip=internet_ip, external_port=external_port).first()
+    if query:
+        return "外网IP对应端口已被使用，请修改外网IP或端口", 400
+    query = db.session.query(VirtualMachine).filter_by(ip=internal_ip, gateway=internet_ip).first()
+    if not query:
+        return "外网IP和内网IP与虚拟机不匹配，请检查填写的外网IP是否和虚拟机的出口IP一致", 400
+    # 【特殊配置】仅管理员可以映射22端口
+    if GDUT_MODE:
+        user = db.session.query(User).filter_by(name=session["username"]).first()
+        if not user.is_admin and int(param["internal_port"]) == 22:
+            return "禁止映射22端口，请使用堡垒机登录！", 403
+    msg = create_nat(internet_ip=internet_ip, internal_ip=internal_ip,
+                     external_port=external_port, internal_port=internal_port,
+                     protocol=protocol, tenant=session["tenant"], create_user=session["username"])
     if msg:
         return msg, 500
     return "", 201
@@ -406,6 +443,8 @@ def api_delete_nat(nat_uuid):
     nat = db.session.query(NAT).filter_by(uuid=nat_uuid).first()
     if session["tenant"] != nat.tenant:
         return "NAT不在此tenant，请切换到对应tenant再试", 403
+    if "deleting" in nat.stage and "ERROR" not in nat.stage:
+        return "NAT正在删除中！", 200
     if delete_nat(nat_uuid):
         return "failed", 500
     return "", 204
@@ -441,6 +480,8 @@ def api_delete_subnet(subnet_uuid):
     subnet = db.session.query(Subnet).filter_by(uuid=subnet_uuid).first()
     if session["tenant"] != subnet.tenant:
         return "subnet不在此tenant，请切换到对应tenant再试", 403
+    if "deleting" in subnet.stage and "ERROR" not in subnet.stage:
+        return "subnet正在删除中！", 200
     msg = delete_subnet(subnet_uuid)
     if msg:
         return msg, 500

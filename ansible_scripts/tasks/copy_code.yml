@@ -5,6 +5,7 @@
     dest: /home/{{ ansible_user }}/
     rsync_opts:
       - "--exclude=ansible_scripts"
+      - "--exclude=instance"
 # 复制项目配置
 - name: Copy config
   ansible.builtin.template:

@@ -75,7 +75,7 @@ def init_vxlan_tunnel(target_uuid: str, target_type):
         return 1
     # 删除现有vxlan端口
     cmd = """
-sudo ip link set mtu 1300 dev br0
+sudo ip link set mtu 1400 dev br0
 ports=`sudo ovs-vsctl list-ports br0`
 for port in $ports; do
     if [[ $port =~ ^vxlan-.* ]]; then

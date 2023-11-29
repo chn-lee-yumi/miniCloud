@@ -8,15 +8,26 @@
 <body>
 <div id="app" v-loading="loading">
 
-    <h1>迷你云平台(V3.0.0-20231128)</h1>
+    <h1>网管队私有云平台(V3.0.0-20231130)</h1>
 
     <h2>公告</h2>
     <el-card>
-        <div class="text item">创建的虚拟机请勿关机（可以在终端用reboot重启），因为开机功能还没完善。</div>
-        <div class="text item">虚拟机分配的IP地址为私有地址，无法直接从外面访问。如需开放端口，需要手动加NAT规则。</div>
+        <el-row class="text item"><strong>你好，{{ userInfo.name }}！</strong>
+            <el-tag type="info" size="small" v-if="userInfo.is_admin">管理员</el-tag>
+        </el-row>
+        <el-row class="text item">
+            <el-row class="text item">创建的虚拟机请勿关机（可以在终端用reboot重启），因为开机功能还没完善。</el-row>
+            <el-row class="text item">请使用
+                <el-link type="primary" herf="http://bastion.gdutnic.com/" target="_blank">堡垒机</el-link>
+                登录虚拟机。
+            </el-row>
+            <el-row class="text item">虚拟机分配的IP地址为私有地址，无法直接从外面访问。如需开放端口，需要手动加NAT规则。</el-row>
+            <el-row class="text item">NAT映射外网端口号可用范围：9000-9999。请勿使用范围外的端口。</el-row>
+            <el-row class="text item">目前磁盘存储为共享1T。</el-row>
+        </el-row>
     </el-card>
 
-    <h2>用户信息</h2>
+    <!--<h2>用户信息</h2>
     <el-card :data="userInfo">
         <el-row class="text item"><strong>你好，{{ userInfo.name }}！</strong>
             <el-tag type="info" size="small" v-if="userInfo.is_admin">管理员</el-tag>
@@ -27,9 +38,9 @@
             </el-select>
         </el-row>
         <el-row class="text item"><strong>
-            <el-link type="warning" href="/logout">Click here to logout. (退出登录)</el-link>
+            <el-link type="warning" href="/logout">点击此处退出登录</el-link>
         </strong></el-row>
-    </el-card>
+    </el-card>-->
 
     <h2>可用资源</h2>
     <el-table :data="resources" style="width: 100%">
@@ -68,11 +79,11 @@
         <el-table-column prop="stage" label="状态"></el-table-column>
         <el-table-column label="操作">
             <template slot-scope="scope">
-                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="打开网页版控制台" placement="top" style="margin: 0">
+                <!--<el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="打开网页版控制台" placement="top" style="margin: 0">
                     <el-button circle type="info" size="small" icon="el-icon-link"
                                @click="openUrl('/static/console.html?instance='+scope.row.instance_name)"></el-button>
                 </el-tooltip>
-                <!--<el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="开机" placement="top" style="margin: 0">
+                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="开机" placement="top" style="margin: 0">
                     <el-button circle type="primary" size="small" icon="el-icon-video-play" @click="startVM(scope.row.uuid)"></el-button>
                 </el-tooltip>
                 <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="关机" placement="top" style="margin: 0">
@@ -91,7 +102,7 @@
 
     <h2>NAT列表</h2>
     <el-table :data="natList" style="width: 100%">
-        <el-table-column prop="uuid" label="ID"></el-table-column>
+        <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
         <el-table-column prop="internet_ip" label="外网IP"></el-table-column>
         <el-table-column prop="internal_ip" label="虚拟机IP"></el-table-column>
         <el-table-column prop="external_port" label="外网端口"></el-table-column>
@@ -99,18 +110,26 @@
         <el-table-column prop="protocol" label="协议"></el-table-column>
         <el-table-column prop="create_user" label="创建用户"></el-table-column>
         <el-table-column prop="stage" label="状态"></el-table-column>
+        <el-table-column label="操作">
+            <template slot-scope="scope">
+                <el-tooltip v-if="scope.row.stage=='OK' || scope.row.stage.includes('ERROR')" class="item" effect="dark" content="删除NAT"
+                            placement="top" style="margin: 0">
+                    <el-button circle type="danger" size="small" icon="el-icon-delete" @click="deleteNat(scope.row.uuid)"></el-button>
+                </el-tooltip>
+            </template>
+        </el-table-column>
     </el-table>
 
     <h2>出口列表</h2>
     <el-table :data="gatewayList" style="width: 100%">
-        <el-table-column prop="uuid" label="ID"></el-table-column>
+        <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
         <el-table-column prop="internet_ip" label="IP"></el-table-column>
         <el-table-column prop="bandwidth" label="带宽(Mbps)"></el-table-column>
         <el-table-column prop="description" label="描述"></el-table-column>
     </el-table>
 
     <h2 v-if="userInfo.is_admin">子网列表</h2>
-    <el-table :data="subnetList" style="width: 100%">
+    <el-table v-if="userInfo.is_admin" :data="subnetList" style="width: 100%">
         <el-table-column prop="uuid" label="ID"></el-table-column>
         <el-table-column prop="cidr" label="CIDR"></el-table-column>
     </el-table>
@@ -171,9 +190,8 @@
         </el-form-item>
     </el-form>-->
 
-    <h2>端口映射（NAT）管理</h2>
+    <h2>创建端口映射（NAT）</h2>
     <el-form :inline="true" :model="formCreateNat">
-        <el-form-item label="创建端口映射（NAT）"></el-form-item>
         <el-form-item>
             <el-select v-model="formCreateNat.protocol" placeholder="协议">
                 <el-option label="TCP" value="tcp"></el-option>
@@ -200,15 +218,6 @@
             <el-button type="primary" @click="createNat">创建</el-button>
         </el-form-item>
     </el-form>
-    <el-form :inline="true" :model="formManageNat">
-        <el-form-item label="删除端口映射（NAT）"></el-form-item>
-        <el-form-item>
-            <el-input style="width:300px" v-model="formManageNat.uuid" placeholder="NAT ID"></el-input>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="danger" @click="deleteNat">删除</el-button>
-        </el-form-item>
-    </el-form>
 
     <h2 v-if="userInfo.is_admin">子网管理</h2>
     <el-form :inline="true" :model="formCreateSubnet" v-if="userInfo.is_admin">
@@ -219,7 +228,7 @@
             <el-button type="primary" @click="createSubnet">创建</el-button>
         </el-form-item>
     </el-form>
-    <el-form :inline="true" :model="formManageSubnet">
+    <el-form :inline="true" :model="formManageSubnet" v-if="userInfo.is_admin">
         <el-form-item label="删除子网">
             <el-input style="width:300px" v-model="formManageSubnet.uuid" placeholder="子网 ID"></el-input>
         </el-form-item>
@@ -274,9 +283,6 @@ new Vue({
             external_port: '',
             internal_port: '',
             protocol: ''
-        },
-        formManageNat: {
-            uuid: '',
         },
         formCreateSubnet: {
             mask: '',
@@ -525,10 +531,10 @@ new Vue({
                 that.loading = false;
             })
         },
-        deleteNat() {
+        deleteNat(uuid) {
             this.loading = true;
             var that = this;
-            axios.delete('/api/nat/' + that.formManageNat.uuid)
+            axios.delete('/api/nat/' + uuid)
                 .then(function(response) {
                     console.log(response);
                     if (response['status'] != 204) alert(response['data']);
@@ -587,8 +593,5 @@ new Vue({
         },
     }
 })
-
-
-
 </script>
 </html>

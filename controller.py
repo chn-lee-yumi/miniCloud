@@ -7,6 +7,11 @@ from config import *
 from database import *
 from utils import *
 
+# 堡垒机配置 TODO：提取出来方便配置
+ENABLE_JUMP_SERVER = True
+if ENABLE_JUMP_SERVER:
+    import plugin_jumpserver
+
 
 def add_host(management_ip: str, service_ip: str, az: str, arch: str, performance: int, cpu: int, cpu_alloc_ratio: float, mem: int,
              mem_alloc_ratio: float, tenant: str = "ALL", init: bool = True):
@@ -153,9 +158,6 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
     :param vm_ip: 虚拟机ip
     :return: 0=OK 1=Failed
     """
-    # 检查用户名
-    if is_enable_ssh and username in ["root", "admin"]:
-        return "用户名不能为%s，请填入其他用户名。后续在服务器中用sudo切到root。" % username
     # 检查规格
     if flavor not in FLAVORS:
         return "虚拟机规格不正确"
@@ -274,6 +276,13 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
     vm.stage = "OK"
     vm.power = 1
     db.session.commit()
+    # 写入堡垒机
+    if ENABLE_JUMP_SERVER:
+        # 自动创建一个SSH的NAT
+        nat_port = 10000 + int(vm_ip.split(".")[-1])
+        create_nat(gateway_internet_ip, vm_ip, nat_port, 22, "tcp", tenant, "堡垒机")
+        plugin_jumpserver.create_assets(vm_uuid, create_user + " - " + instance_name, gateway_internet_ip, nat_port)
+        plugin_jumpserver.create_perms(vm_uuid, create_user + " - " + instance_name, create_user)
     return 0
 
 
@@ -286,12 +295,23 @@ def delete_vm(vm_uuid: str):
     vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
     if not vm:
         return 0
-    # 检查有没有nat未删除
-    if db.session.query(NAT).filter_by(internal_ip=vm.ip).all():
-        return "该虚拟机还有NAT未删除，请删除NAT后再删除虚拟机！"
+    vm.stage = "deleting NAT"
+    db.session.commit()
+    # 自动删除所有NAT
+    nat_list = db.session.query(NAT).filter_by(internal_ip=vm.ip).all()
+    for nat in nat_list:
+        code = delete_nat(nat.uuid)
+        if code:
+            vm.stage += " ERROR"
+            db.session.commit()
+            return 1
     vm.stage = "deleting machine"
     db.session.commit()
     vm = db.session.query(VirtualMachine).filter_by(uuid=vm_uuid).first()
+    # 写入堡垒机
+    if ENABLE_JUMP_SERVER:
+        plugin_jumpserver.delete_assets(vm_uuid)
+        plugin_jumpserver.delete_perms(vm_uuid)
     # 删除虚拟机
     code, _, _ = exec_cmd("""ssh %s 'sudo lxc delete --force %s; sudo lxc profile delete %s'""" % (vm.host, vm.instance_name, vm.instance_name))
     if code:
@@ -417,14 +437,6 @@ def create_nat(internet_ip: str, internal_ip: str, external_port: int, internal_
     :param create_user: 创建NAT的用户
     :return:
     """
-    # TODO：判断internet_ip是否在数据库中，internal_ip是否在云私有网段范围内
-    if protocol not in ["udp", "tcp"]:
-        return "协议不是udp或tcp"
-    if not (1 <= internal_port <= 65535 or 1 <= external_port <= 65535):
-        return "端口号不在1~65535内"
-    query = db.session.query(NAT).filter_by(internet_ip=internet_ip, external_port=external_port).first()
-    if query:
-        return "端口已被使用"
     # 生成一个uuid
     nat_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, "%s.%s.%d.%d.%s" % (internet_ip, internal_ip, external_port, internal_port, protocol)))
     # 写入数据库

@@ -26,7 +26,7 @@ if [ $# -eq 11 ]; then
   target_node=${11}
 elif [ $# -eq 9 ]; then # 不创建ssh登录用户，默认创建一个cloud
   username="cloud"
-  pubkey="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDSpMvlkRaWzXT1MnNhi/72POCNi6HGxLWFQz8G02pscrkH2BIqzivKA6p6E3MdVw7XN/D/1t+nc49BL5QtbMsCkZ2tD0NRLtAEM1voJVnV+UO6ehV/5gCqdVlf1uwFfQcPoeoABJl0j/+aqAmw6GCE9Prg1jcq7oIc7qGX4L+x548aafiGnSnOzA6Q9LOpK+y92Ah5wGPZVcU0Lc8vU5VDpuAdPyMxNpr/qnyXywIIl1SHacE1Gl0sQZhdId0xk+LGcEITGYynyYPHnbHs8moI2ARW9MM/9k3Esqlg87WwSANTNxwUvqhj8u/iconki8JGTULAJS3wzAX/MhMw7xNtOHKeZa7D2vUJ8JbiYpn6f9RlSYkJnG3qft/VU0fejmnxL2eBGYO7sEEdVsVs1vn0FOmxcqYERde8N5Ldop1OQynopv0y5FnIRdLeUjIuBbHfySf5X7tBv+qSyr3dqKss8fcNhAOw9XNDq/vjwtnJnY0nJx2aSt2OC5M2ndLuots= cloud"
+  pubkey="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC68f7f+kLP4/gfCj0PKkDQkSToB3nU/1pSFwSe8GVgZNDIUXQ6QGd2rwfT4If1JL8tTupHTDrb6zoKWw1H0InK+eaYuacLa5EKNh5i5lmd3lGeY72OVwa9Aym/lqaDx31mFl4+dpUjxd9bMx+TGMuvIiyFRmdpNZGbD6BDI6Sd4gbZpEFW7JSDgfg8A+vuqig8Gq4iWTkYg3noEvD9F9Gmykw9THmmK+AWYfTcoo+AycOdg5+9v3w4TD8TdevzyP/EN9poQxdN9OVjSsFLCw2B9/ZBR9sENtH28mm1BQsq3yOeSR+etQ9yBGjIxIZK9PSoYwOKVv42G86sqC2mdRTAAtGzni5NmViEhv5uEhTmtp2BRFbVCbbeGbsX1QkKVSmmYr/P9ZMnsIEHPIsXqMCkiqsHhI/kUaAUE5gSnz1ECl/IGcv30N1aya5D4Hbo7MDx9G0ccclmdF01mL5KR/dWwQnq1/xf/kw8RcNqJDpbAS8ohEwRj49dd+zdkfMKxoc= cloud"
   target_node=$9
 fi
 #password=`mkpasswd --method=SHA-512 $password`
@@ -83,6 +83,7 @@ users:
     sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]
     shell: /bin/bash
 "
+# TODO：注意这里的DNS是内网的，如果是其他用途，记得修改！
 lxc profile set $name cloud-init.network-config "version: 1
 config:
   - type: physical
@@ -95,7 +96,7 @@ config:
         gateway: $gateway
         control: auto
   - type: nameserver
-    address: 202.116.128.1
+    address: 10.21.255.53
 "
 lxc profile device set $name eth0 host_name=$veth
 
