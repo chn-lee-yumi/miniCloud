@@ -26,7 +26,7 @@ FLAVORS = {
 
 # 虚拟机系统列表
 OS_LIST = ["ubuntu/22.04", "ubuntu/20.04",
-           "debian/12", "debian/11",
+           # "debian/12", "debian/11",  # debian目前镜像有问题
            "centos/9-Stream", "centos/8-Stream"]
 # archlinux fedora gentoo opensuse
 

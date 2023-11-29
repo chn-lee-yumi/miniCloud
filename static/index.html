@@ -19,11 +19,11 @@
     <el-card style="background: #FFFFDD;">
         <strong style="font-size:20px;">公告</strong>
         <el-row class="text item">
-            <el-row class="text item">创建的虚拟机请勿关机（可以在终端用reboot重启），因为开机功能还没完善。</el-row>
-            <el-row class="text item">请使用
+            <el-row class="text item">请先在
                 <el-link type="primary" href="http://bastion.gdutnic.com/" target="_blank">堡垒机</el-link>
-                登录虚拟机。
+                平台注册账号再申请虚拟机，否则无法登录！创建虚拟机后请通过堡垒机登录。
             </el-row>
+            <el-row class="text item">创建的虚拟机请勿关机或重启，因为这部分功能还没完善，会导致断网。</el-row>
             <el-row class="text item">虚拟机分配的IP地址为私有地址，无法直接从外面访问。如需开放端口，需要手动加NAT规则。</el-row>
             <el-row class="text item">NAT映射外网端口号可用范围：9000-9999。请勿使用范围外的端口。</el-row>
             <el-row class="text item">目前磁盘存储为共享1T。</el-row>
@@ -487,6 +487,5 @@ new Vue({
         },
     }
 })
-
 </script>
 </html>
