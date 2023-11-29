@@ -34,19 +34,19 @@ fi
 ubuntu_mirror="apt:
   primary:
     - arches: [default]
-      uri: http://mirrors.gdut.edu.cn/ubuntu
+      uri: https://mirrors.gdut.edu.cn/ubuntu
 "
 
 ubuntu_ports_mirror="apt:
   primary:
     - arches: [default]
-      uri: http://mirrors.gdut.edu.cn/ubuntu-ports
+      uri: https://mirrors.gdut.edu.cn/ubuntu-ports
 "
 
 debian_mirror="apt:
   primary:
     - arches: [default]
-      uri: http://mirrors.gdut.edu.cn/debian
+      uri: https://mirrors.gdut.edu.cn/debian
 "
 
 # TODO: centos

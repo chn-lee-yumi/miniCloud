@@ -169,6 +169,8 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
     if os not in OS_LIST:
         return "所选操作系统不支持"
     # 检查名字
+    if instance_name.isnumeric():
+        return "虚拟机名字不能是纯数字"
     if not instance_name.isalnum():
         return "虚拟机名字只能包含英文和数字"
     if instance_name == "":
@@ -281,8 +283,8 @@ def create_vm(subnet_uuid: str, gateway_internet_ip: str, flavor: str, os: str, 
         # 自动创建一个SSH的NAT
         nat_port = 10000 + int(vm_ip.split(".")[-1])
         create_nat(gateway_internet_ip, vm_ip, nat_port, 22, "tcp", tenant, "堡垒机")
-        plugin_jumpserver.create_assets(vm_uuid, create_user + " - " + instance_name, gateway_internet_ip, nat_port)
-        plugin_jumpserver.create_perms(vm_uuid, create_user + " - " + instance_name, create_user)
+        plugin_jumpserver.create_assets(vm_uuid, create_user + "-" + instance_name, gateway_internet_ip, nat_port)
+        plugin_jumpserver.create_perms(vm_uuid, create_user + "-" + instance_name, create_user)
     return 0
 
 

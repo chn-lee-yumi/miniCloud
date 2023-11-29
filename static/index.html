@@ -6,24 +6,28 @@
     <link rel="stylesheet" href="https://cdn.bootcss.com/element-ui/2.9.2/theme-chalk/index.css">
 </head>
 <body>
-<div id="app" v-loading="loading">
+<div id="app">
 
     <h1>网管队私有云平台(V3.0.0-20231130)</h1>
 
-    <h2>公告</h2>
     <el-card>
-        <el-row class="text item"><strong>你好，{{ userInfo.name }}！</strong>
-            <el-tag type="info" size="small" v-if="userInfo.is_admin">管理员</el-tag>
+        <el-row class="text item" style="font-size:20px;"><strong>你好，{{ userInfo.name }}！</strong>
+            <el-tag type="info" v-if="userInfo.is_admin">管理员</el-tag>
         </el-row>
+    </el-card>
+
+    <el-card style="background: #FFFFDD;">
+        <strong style="font-size:20px;">公告</strong>
         <el-row class="text item">
             <el-row class="text item">创建的虚拟机请勿关机（可以在终端用reboot重启），因为开机功能还没完善。</el-row>
             <el-row class="text item">请使用
-                <el-link type="primary" herf="http://bastion.gdutnic.com/" target="_blank">堡垒机</el-link>
+                <el-link type="primary" href="http://bastion.gdutnic.com/" target="_blank">堡垒机</el-link>
                 登录虚拟机。
             </el-row>
             <el-row class="text item">虚拟机分配的IP地址为私有地址，无法直接从外面访问。如需开放端口，需要手动加NAT规则。</el-row>
             <el-row class="text item">NAT映射外网端口号可用范围：9000-9999。请勿使用范围外的端口。</el-row>
             <el-row class="text item">目前磁盘存储为共享1T。</el-row>
+            <el-row class="text item">如果新创建的虚拟机无法连上，可以删除重新创建试试。</el-row>
         </el-row>
     </el-card>
 
@@ -42,201 +46,182 @@
         </strong></el-row>
     </el-card>-->
 
-    <h2>可用资源</h2>
-    <el-table :data="resources" style="width: 100%">
-        <el-table-column prop="az" label="可用区"></el-table-column>
-        <el-table-column prop="flavor" label="规格"></el-table-column>
-        <el-table-column prop="arch" label="CPU架构"></el-table-column>
-        <!--<el-table-column prop="performance" label="单核性能参考（越大越好）"></el-table-column>-->
-        <el-table-column prop="cpu" label="CPU核心数"></el-table-column>
-        <el-table-column prop="mem" label="内存大小（MB）"></el-table-column>
-        <el-table-column prop="remain" label="可创建实例数量"></el-table-column>
-    </el-table>
-    <el-row class="text item">
-        <strong>你的资源额度：</strong>
-        <span>CPU：</span>
-        <el-tag type="primary" size="small">
-            <span v-if="userInfo.cpu_quota==-1">Unlimited</span><span v-else>{{ userInfo.cpu_quota }} 核</span>
-        </el-tag>
-        <span>，已用 <el-tag type="primary" size="small">{{ userInfo.cpu_used }} 核</el-tag>；</span>
-        <span>内存：</span>
-        <el-tag type="primary" size="small">
-            <span v-if="userInfo.mem_quota==-1">Unlimited</span><span v-else>{{ userInfo.mem_quota }} MB</span>
-        </el-tag>
-        <span>，已用 <el-tag type="primary" size="small">{{ userInfo.mem_used }} MB</el-tag>。</span>
-    </el-row>
+    <el-tabs type="border-card" style="margin-top:5px;" v-loading="loading" element-loading-text="处理中，大约需要2分钟，请耐心等候">
+        <el-tab-pane label="可用资源">
+            <el-table :data="resources" style="width: 100%; margin-bottom: 6px;">
+                <el-table-column prop="az" label="可用区"></el-table-column>
+                <el-table-column prop="flavor" label="规格"></el-table-column>
+                <el-table-column prop="arch" label="CPU架构"></el-table-column>
+                <!--<el-table-column prop="performance" label="单核性能参考（越大越好）"></el-table-column>-->
+                <el-table-column prop="cpu" label="CPU核心数"></el-table-column>
+                <el-table-column prop="mem" label="内存大小（MB）"></el-table-column>
+                <el-table-column prop="remain" label="可创建实例数量"></el-table-column>
+            </el-table>
+            <el-row class="text item">
+                <strong>你的资源额度：</strong>
+                <span>CPU：</span>
+                <el-tag type="primary" size="small">
+                    <span v-if="userInfo.cpu_quota==-1">Unlimited</span><span v-else>{{ userInfo.cpu_quota }} 核</span>
+                </el-tag>
+                <span>，已用 <el-tag type="primary" size="small">{{ userInfo.cpu_used }} 核</el-tag>；</span>
+                <span>内存：</span>
+                <el-tag type="primary" size="small">
+                    <span v-if="userInfo.mem_quota==-1">Unlimited</span><span v-else>{{ userInfo.mem_quota }} MB</span>
+                </el-tag>
+                <span>，已用 <el-tag type="primary" size="small">{{ userInfo.mem_used }} MB</el-tag>。</span>
+            </el-row>
+        </el-tab-pane>
 
-    <h2>虚拟机列表</h2>
-    <el-table :data="vmList" style="width: 100%">
-        <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
-        <el-table-column prop="instance_name" label="虚拟机名字"></el-table-column>
-        <el-table-column prop="ip" label="IP"></el-table-column>
-        <el-table-column prop="gateway" label="出口IP"></el-table-column>
-        <el-table-column prop="flavor" label="规格"></el-table-column>
-        <el-table-column prop="os" label="操作系统"></el-table-column>
-        <el-table-column prop="az" label="所在可用区"></el-table-column>
-        <el-table-column prop="create_user" label="创建用户"></el-table-column>
-        <el-table-column prop="stage" label="状态"></el-table-column>
-        <el-table-column label="操作">
-            <template slot-scope="scope">
-                <!--<el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="打开网页版控制台" placement="top" style="margin: 0">
-                    <el-button circle type="info" size="small" icon="el-icon-link"
-                               @click="openUrl('/static/console.html?instance='+scope.row.instance_name)"></el-button>
-                </el-tooltip>
-                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="开机" placement="top" style="margin: 0">
-                    <el-button circle type="primary" size="small" icon="el-icon-video-play" @click="startVM(scope.row.uuid)"></el-button>
-                </el-tooltip>
-                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="关机" placement="top" style="margin: 0">
-                    <el-button circle type="warning" size="small" icon="el-icon-close" @click="shutdownVM(scope.row.uuid)"></el-button>
-                </el-tooltip>
-                <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="重启" placement="top" style="margin: 0">
-                    <el-button circle type="warning" size="small" icon="el-icon-refresh" @click="rebootVM(scope.row.uuid)"></el-button>
-                </el-tooltip>-->
-                <el-tooltip v-if="scope.row.stage=='OK' || scope.row.stage.includes('ERROR')" class="item" effect="dark" content="删除虚拟机"
-                            placement="top" style="margin: 0">
-                    <el-button circle type="danger" size="small" icon="el-icon-delete" @click="deleteVM(scope.row.uuid)"></el-button>
-                </el-tooltip>
-            </template>
-        </el-table-column>
-    </el-table>
+        <el-tab-pane label="虚拟机管理">
+            <el-table :data="vmList" style="width: 100%; margin-bottom: 6px;">
+                <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
+                <el-table-column prop="instance_name" label="虚拟机名字"></el-table-column>
+                <el-table-column prop="ip" label="IP"></el-table-column>
+                <el-table-column prop="gateway" label="出口IP"></el-table-column>
+                <el-table-column prop="flavor" label="规格"></el-table-column>
+                <el-table-column prop="os" label="操作系统"></el-table-column>
+                <el-table-column prop="az" label="所在可用区"></el-table-column>
+                <el-table-column prop="create_user" label="创建用户"></el-table-column>
+                <el-table-column prop="stage" label="状态"></el-table-column>
+                <el-table-column label="操作">
+                    <template slot-scope="scope">
+                        <!--<el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="打开网页版控制台" placement="top" style="margin: 0">
+                            <el-button circle type="info" size="small" icon="el-icon-link"
+                                       @click="openUrl('/static/console.html?instance='+scope.row.instance_name)"></el-button>
+                        </el-tooltip>
+                        <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="开机" placement="top" style="margin: 0">
+                            <el-button circle type="primary" size="small" icon="el-icon-video-play" @click="startVM(scope.row.uuid)"></el-button>
+                        </el-tooltip>
+                        <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="关机" placement="top" style="margin: 0">
+                            <el-button circle type="warning" size="small" icon="el-icon-close" @click="shutdownVM(scope.row.uuid)"></el-button>
+                        </el-tooltip>
+                        <el-tooltip v-if="scope.row.stage=='OK'" class="item" effect="dark" content="重启" placement="top" style="margin: 0">
+                            <el-button circle type="warning" size="small" icon="el-icon-refresh" @click="rebootVM(scope.row.uuid)"></el-button>
+                        </el-tooltip>-->
+                        <el-tooltip v-if="scope.row.stage=='OK' || scope.row.stage.includes('ERROR')" class="item" effect="dark" content="删除虚拟机"
+                                    placement="top" style="margin: 0">
+                            <el-button circle type="danger" size="small" icon="el-icon-delete" @click="deleteVM(scope.row.uuid)"></el-button>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+            </el-table>
 
-    <h2>NAT列表</h2>
-    <el-table :data="natList" style="width: 100%">
-        <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
-        <el-table-column prop="internet_ip" label="外网IP"></el-table-column>
-        <el-table-column prop="internal_ip" label="虚拟机IP"></el-table-column>
-        <el-table-column prop="external_port" label="外网端口"></el-table-column>
-        <el-table-column prop="internal_port" label="内网端口"></el-table-column>
-        <el-table-column prop="protocol" label="协议"></el-table-column>
-        <el-table-column prop="create_user" label="创建用户"></el-table-column>
-        <el-table-column prop="stage" label="状态"></el-table-column>
-        <el-table-column label="操作">
-            <template slot-scope="scope">
-                <el-tooltip v-if="scope.row.stage=='OK' || scope.row.stage.includes('ERROR')" class="item" effect="dark" content="删除NAT"
-                            placement="top" style="margin: 0">
-                    <el-button circle type="danger" size="small" icon="el-icon-delete" @click="deleteNat(scope.row.uuid)"></el-button>
-                </el-tooltip>
-            </template>
-        </el-table-column>
-    </el-table>
+            <el-form :model="formCreateInstance">
+                <el-form-item label="创建虚拟机">
+                    <el-input style="width:200px" v-model="formCreateInstance.instance_name" placeholder="虚拟机名字"></el-input>
+                    <el-select v-model="formCreateInstance.os" placeholder="操作系统">
+                        <el-option v-for="os in osList" :value="os"></el-option>
+                    </el-select>
+                    <el-select v-model="formCreateInstance.az" placeholder="AZ(可用区)">
+                        <el-option v-for="az in azList" :value="az"></el-option>
+                    </el-select>
+                    <el-select v-model="formCreateInstance.flavor" placeholder="虚拟机配置">
+                        <el-option v-for="flavor in flavorList" :value="flavor"></el-option>
+                    </el-select>
+                    <el-select v-model="formCreateInstance.subnet" placeholder="子网">
+                        <el-option v-for="item in subnetList" :key="item.cidr" :label="item.cidr" :value="item.uuid"></el-option>
+                    </el-select>
+                    <el-select v-model="formCreateInstance.gateway" placeholder="出口IP">
+                        <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip"
+                                   :value="item.internet_ip"></el-option>
+                    </el-select>
+                    <el-button type="primary" @click="createInstance">创建</el-button>
+                </el-form-item>
+                <!--<el-form-item label="创建SSH登录用户">
+                    <el-switch v-model="formCreateInstance.enableSSH"></el-switch>
+                    <el-input style="width:150px" v-if="formCreateInstance.enableSSH" v-model="formCreateInstance.username" placeholder="用户名"></el-input>
+                    <el-input style="width:900px" v-if="formCreateInstance.enableSSH" v-model="formCreateInstance.pubkey"
+                              placeholder="登录公钥：请输入ssh-rsa开头的公钥，如ssh-rsa AAAAB3NzaC1..."></el-input>
+                </el-form-item>-->
+            </el-form>
+        </el-tab-pane>
 
-    <h2>出口列表</h2>
-    <el-table :data="gatewayList" style="width: 100%">
-        <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
-        <el-table-column prop="internet_ip" label="IP"></el-table-column>
-        <el-table-column prop="bandwidth" label="带宽(Mbps)"></el-table-column>
-        <el-table-column prop="description" label="描述"></el-table-column>
-    </el-table>
+        <el-tab-pane label="NAT管理">
+            <el-table :data="natList" style="width: 100%; margin-bottom: 6px;">
+                <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
+                <el-table-column prop="internet_ip" label="外网IP"></el-table-column>
+                <el-table-column prop="internal_ip" label="虚拟机IP"></el-table-column>
+                <el-table-column prop="external_port" label="外网端口"></el-table-column>
+                <el-table-column prop="internal_port" label="内网端口"></el-table-column>
+                <el-table-column prop="protocol" label="协议"></el-table-column>
+                <el-table-column prop="create_user" label="创建用户"></el-table-column>
+                <el-table-column prop="stage" label="状态"></el-table-column>
+                <el-table-column label="操作">
+                    <template slot-scope="scope">
+                        <el-tooltip v-if="scope.row.stage=='OK' || scope.row.stage.includes('ERROR')" class="item" effect="dark" content="删除NAT"
+                                    placement="top" style="margin: 0">
+                            <el-button circle type="danger" size="small" icon="el-icon-delete" @click="deleteNat(scope.row.uuid)"></el-button>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+            </el-table>
 
-    <h2 v-if="userInfo.is_admin">子网列表</h2>
-    <el-table v-if="userInfo.is_admin" :data="subnetList" style="width: 100%">
-        <el-table-column prop="uuid" label="ID"></el-table-column>
-        <el-table-column prop="cidr" label="CIDR"></el-table-column>
-    </el-table>
+            <el-form :inline="true" :model="formCreateNat">
+                <el-form-item label="创建NAT"></el-form-item>
+                <el-form-item>
+                    <el-select v-model="formCreateNat.protocol" placeholder="协议">
+                        <el-option label="TCP" value="tcp"></el-option>
+                        <el-option label="UDP" value="udp"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-select v-model="formCreateNat.internet_ip" placeholder="外网IP（出口IP）">
+                        <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip"
+                                   :value="item.internet_ip"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-select v-model="formCreateNat.internal_ip" placeholder="内网IP（虚拟机IP）">
+                        <el-option v-for="item in vmList" :key="item.ip" :label="item.ip" :value="item.ip"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-input v-model="formCreateNat.external_port" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="外网端口"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-input v-model="formCreateNat.internal_port" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="内网端口"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="createNat">创建</el-button>
+                </el-form-item>
+            </el-form>
+        </el-tab-pane>
 
-    <h2>创建虚拟机</h2>
-    <el-form :model="formCreateInstance">
-        <el-form-item>
-            <el-input style="width:200px" v-model="formCreateInstance.instance_name" placeholder="虚拟机名字"></el-input>
-            <el-select v-model="formCreateInstance.os" placeholder="操作系统">
-                <el-option v-for="os in osList" :value="os"></el-option>
-            </el-select>
-            <el-select v-model="formCreateInstance.az" placeholder="AZ(可用区)">
-                <el-option v-for="az in azList" :value="az"></el-option>
-            </el-select>
-            <el-select v-model="formCreateInstance.flavor" placeholder="虚拟机配置">
-                <el-option v-for="flavor in flavorList" :value="flavor"></el-option>
-            </el-select>
-            <el-select v-model="formCreateInstance.subnet" placeholder="子网">
-                <el-option v-for="item in subnetList" :key="item.cidr" :label="item.cidr" :value="item.uuid"></el-option>
-            </el-select>
-            <el-select v-model="formCreateInstance.gateway" placeholder="出口IP">
-                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
-            </el-select>
-            <el-button type="primary" @click="createInstance">创建</el-button>
-        </el-form-item>
-        <!--<el-form-item label="创建SSH登录用户">
-            <el-switch v-model="formCreateInstance.enableSSH"></el-switch>
-            <el-input style="width:150px" v-if="formCreateInstance.enableSSH" v-model="formCreateInstance.username" placeholder="用户名"></el-input>
-            <el-input style="width:900px" v-if="formCreateInstance.enableSSH" v-model="formCreateInstance.pubkey"
-                      placeholder="登录公钥：请输入ssh-rsa开头的公钥，如ssh-rsa AAAAB3NzaC1..."></el-input>
-        </el-form-item>-->
-    </el-form>
+        <el-tab-pane v-if="userInfo.is_admin" label="子网管理">
+            <el-table v-if="userInfo.is_admin" :data="subnetList" style="width: 100%; margin-bottom: 6px;">
+                <el-table-column prop="uuid" label="ID"></el-table-column>
+                <el-table-column prop="cidr" label="CIDR"></el-table-column>
+            </el-table>
 
-    <!--<h2>虚拟机管理</h2>
-    <el-form :inline="true" :model="formManageInstance">
-        <el-form-item label="虚拟机ID">
-            <el-input style="width:300px" v-model="formManageInstance.vm_uuid" placeholder="虚拟机ID"></el-input>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="success" @click="optInstance('start')">开机</el-button>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="danger" @click="optInstance('shutdown')">关机</el-button>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="warning" @click="optInstance('reboot')">重启</el-button>
-        </el-form-item>
-        <el-form-item label="修改出口IP">
-            <el-select v-model="formManageInstance.gateway_internet_ip" placeholder="出口IP">
-                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
-            </el-select>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="warning" @click="optInstance('setGateway')">确定修改</el-button>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="danger" @click="optInstance('delete')">删除虚拟机</el-button>
-        </el-form-item>
-    </el-form>-->
+            <el-form :inline="true" :model="formCreateSubnet" v-if="userInfo.is_admin">
+                <el-form-item label="创建子网">
+                    <el-input v-model="formCreateSubnet.mask" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="子网掩码长度，如24"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="createSubnet">创建</el-button>
+                </el-form-item>
+            </el-form>
 
-    <h2>创建端口映射（NAT）</h2>
-    <el-form :inline="true" :model="formCreateNat">
-        <el-form-item>
-            <el-select v-model="formCreateNat.protocol" placeholder="协议">
-                <el-option label="TCP" value="tcp"></el-option>
-                <el-option label="UDP" value="udp"></el-option>
-            </el-select>
-        </el-form-item>
-        <el-form-item>
-            <el-select v-model="formCreateNat.internet_ip" placeholder="外网IP（出口IP）">
-                <el-option v-for="item in gatewayList" :key="item.internet_ip" :label="item.internet_ip" :value="item.internet_ip"></el-option>
-            </el-select>
-        </el-form-item>
-        <el-form-item>
-            <el-select v-model="formCreateNat.internal_ip" placeholder="内网IP（虚拟机IP）">
-                <el-option v-for="item in vmList" :key="item.ip" :label="item.ip" :value="item.ip"></el-option>
-            </el-select>
-        </el-form-item>
-        <el-form-item>
-            <el-input v-model="formCreateNat.external_port" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="外网端口"></el-input>
-        </el-form-item>
-        <el-form-item>
-            <el-input v-model="formCreateNat.internal_port" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="内网端口"></el-input>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="primary" @click="createNat">创建</el-button>
-        </el-form-item>
-    </el-form>
+            <el-form :inline="true" :model="formManageSubnet" v-if="userInfo.is_admin">
+                <el-form-item label="删除子网">
+                    <el-input style="width:300px" v-model="formManageSubnet.uuid" placeholder="子网 ID"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="danger" @click="deleteSubnet">删除</el-button>
+                </el-form-item>
+            </el-form>
+        </el-tab-pane>
 
-    <h2 v-if="userInfo.is_admin">子网管理</h2>
-    <el-form :inline="true" :model="formCreateSubnet" v-if="userInfo.is_admin">
-        <el-form-item label="创建子网">
-            <el-input v-model="formCreateSubnet.mask" onkeyup="value=value.replace(/[^\d]/g,'')" placeholder="子网掩码长度，如24"></el-input>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="primary" @click="createSubnet">创建</el-button>
-        </el-form-item>
-    </el-form>
-    <el-form :inline="true" :model="formManageSubnet" v-if="userInfo.is_admin">
-        <el-form-item label="删除子网">
-            <el-input style="width:300px" v-model="formManageSubnet.uuid" placeholder="子网 ID"></el-input>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="danger" @click="deleteSubnet">删除</el-button>
-        </el-form-item>
-    </el-form>
+        <el-tab-pane label="出口信息">
+            <el-table :data="gatewayList" style="width: 100%">
+                <!--<el-table-column prop="uuid" label="ID"></el-table-column>-->
+                <el-table-column prop="internet_ip" label="IP"></el-table-column>
+                <el-table-column prop="bandwidth" label="带宽(Mbps)"></el-table-column>
+                <el-table-column prop="description" label="描述"></el-table-column>
+            </el-table>
+        </el-tab-pane>
 
+    </el-tabs>
 </div>
 </body>
 
@@ -383,7 +368,6 @@ new Vue({
         createInstance() {
             this.loading = true;
             var that = this;
-            alert("点击确定开始创建，大约需要两分钟，请耐心等候。如果卡了很久或创建失败，可以刷新页面，删掉虚拟机重试。虚拟机创建成功后需要两分钟初始化，之后才能通过SSH连上。");
             axios.post('/api/vm', that.formCreateInstance)
                 .then(function(response) {
                     console.log(response);
@@ -420,96 +404,6 @@ new Vue({
             finally(function() {
                 that.loading = false;
             })
-        },
-        optInstance(opt) {
-            this.loading = true;
-            var that = this;
-            if (opt == "delete") {
-                axios.delete('/api/vm/' + that.formManageInstance.vm_uuid)
-                    .then(function(response) {
-                        console.log(response);
-                        if (response['status'] != 204) alert(response['data']);
-                        else alert("执行成功！");
-                        that.updateStatus();
-                    })
-                    .
-                catch(function(error) {
-                        console.log(error);
-                        alert(error.response['data']);
-                    })
-                    .
-                finally(function() {
-                    that.loading = false;
-                })
-            } else if (opt == "setGateway") {
-                axios.put('/api/route', that.formManageInstance)
-                    .then(function(response) {
-                        console.log(response);
-                        if (response['data'] != "") alert(response['data']);
-                        else alert("执行成功！");
-                        that.updateStatus();
-                    })
-                    .
-                catch(function(error) {
-                        console.log(error);
-                        alert(error.response['data']);
-                    })
-                    .
-                finally(function() {
-                    that.loading = false;
-                })
-            } else if (opt == "start") {
-                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/start')
-                    .then(function(response) {
-                        console.log(response);
-                        if (response['data'] != "") alert(response['data']);
-                        else alert("执行成功！");
-                        that.updateStatus();
-                    })
-                    .
-                catch(function(error) {
-                        console.log(error);
-                        alert(error.response['data']);
-                    })
-                    .
-                finally(function() {
-                    that.loading = false;
-                })
-            } else if (opt == "shutdown") {
-                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/shutdown')
-                    .then(function(response) {
-                        console.log(response);
-                        if (response['data'] != "") alert(response['data']);
-                        else alert("执行成功！");
-                        that.updateStatus();
-                    })
-                    .
-                catch(function(error) {
-                        console.log(error);
-                        alert(error.response['data']);
-                    })
-                    .
-                finally(function() {
-                    that.loading = false;
-                })
-            } else if (opt == "reboot") {
-                axios.get('/api/vm/' + that.formManageInstance.vm_uuid + '/reboot')
-                    .then(function(response) {
-                        console.log(response);
-                        if (response['data'] != "") alert(response['data']);
-                        else alert("执行成功！");
-                        that.updateStatus();
-                    })
-                    .
-                catch(function(error) {
-                        console.log(error);
-                        alert(error.response['data']);
-                    })
-                    .
-                finally(function() {
-                    that.loading = false;
-                })
-            }
         },
         createNat() {
             this.loading = true;
@@ -593,5 +487,6 @@ new Vue({
         },
     }
 })
+
 </script>
 </html>

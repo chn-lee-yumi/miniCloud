@@ -28,6 +28,7 @@ def get_user_info(auth):
 
 
 def create_assets(uuid, name, ip, port):
+    print("在堡垒机上创建资产")
     auth = get_auth(KeyID, SecretID)
     url = jms_url + '/api/v1/assets/hosts/'
     gmt_form = '%a, %d %b %Y %H:%M:%S GMT'
@@ -42,14 +43,16 @@ def create_assets(uuid, name, ip, port):
         "address": ip,
         "platform": 1,  # 1=Linux
         "protocols": [{"name": "ssh", "port": port}, {"name": "sftp", "port": port}],
-        "accounts": [{"template": "058a917a-a78c-477e-88b1-674efb2600c5"}],  # 这个模板从前端手动创建
+        "accounts": [{"name": "cloud", "username": "cloud", "template": "058a917a-a78c-477e-88b1-674efb2600c5"}],  # 这个模板从前端手动创建
         "nodes_display": ["/Default/GDUTNIC/网管队云平台"],
     }
+    print(data)
     response = requests.post(url, auth=auth, headers=headers, json=data)
     print(response.json())
 
 
 def create_perms(uuid, name, username):
+    print("在堡垒机上创建权限绑定")
     auth = get_auth(KeyID, SecretID)
     url = jms_url + '/api/v1/perms/asset-permissions/'
     user_list = get_user_info(auth)
@@ -74,11 +77,13 @@ def create_perms(uuid, name, username):
         "users": [user_id],
         "accounts": ["@ALL"],
     }
+    print(data)
     response = requests.post(url, auth=auth, headers=headers, json=data)
     print(response.json())
 
 
 def delete_assets(id):
+    print("在堡垒机上删除资产")
     auth = get_auth(KeyID, SecretID)
     url = jms_url + '/api/v1/assets/hosts/' + id + "/"
     gmt_form = '%a, %d %b %Y %H:%M:%S GMT'
@@ -92,6 +97,7 @@ def delete_assets(id):
 
 
 def delete_perms(id):
+    print("在堡垒机上删除权限绑定")
     auth = get_auth(KeyID, SecretID)
     url = jms_url + '/api/v1/perms/asset-permissions/' + id + "/"
     gmt_form = '%a, %d %b %Y %H:%M:%S GMT'
@@ -105,7 +111,7 @@ def delete_perms(id):
 
 
 if __name__ == '__main__':
-    auth = get_auth(KeyID, SecretID)
-    get_user_info(auth)
-    # create_assets("a63a61a6-8e48-11ee-b79b-53e5304606c5", "测试鸡", "10.21.255.38", 22)
-    # delete_assets("a63a61a6-8e48-11ee-b79b-53e5304606c5")
+    # auth = get_auth(KeyID, SecretID)
+    # get_user_info(auth)
+    create_assets("a63a61a6-8e48-11ee-b79b-53e5304606c5", "测试鸡", "10.21.255.38", '22')
+    delete_assets("a63a61a6-8e48-11ee-b79b-53e5304606c5")
