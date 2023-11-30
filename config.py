@@ -38,6 +38,12 @@ CONSOLE_TIMEOUT = 60  # 控制台超时时间
 #     },
 # }
 FLAVORS = {
+    "x1.micro": {
+        "performance": 1,
+        "cpu": 0.5,
+        "mem": 1024,
+        "arch": "x86"
+    },
     "x1.small": {
         "performance": 1,
         "cpu": 1,

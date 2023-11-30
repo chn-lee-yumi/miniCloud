@@ -101,16 +101,24 @@ config:
 "
 lxc profile device set $name eth0 host_name=$veth
 
+# 注意，清华的镜像很多是旧的
 if [[ -n $target_node ]]; then
-  lxc launch tuna-images:$image $name -p $name --target $target_node --storage miniCloud
+  #lxc launch tuna-images:$image $name -p $name --target $target_node --storage miniCloud
+  lxc launch images:$image $name -p $name --target $target_node --storage miniCloud
 else
-  lxc launch tuna-images:$image $name -p $name --storage miniCloud
+  #lxc launch tuna-images:$image $name -p $name --storage miniCloud
+  lxc launch images:$image $name -p $name --storage miniCloud
 fi
 
 if [[ $? != 0 ]]; then
   exit 3
 fi
 
-lxc config set $name limits.cpu $core
+if [[ $core == "0.5" ]]; then
+  lxc config set $name limits.cpu 1
+  lxc config set $name limits.cpu.allowance 50ms/100ms
+else
+  lxc config set $name limits.cpu $core
+fi
 lxc config set $name limits.memory $mem
 lxc config set $name security.nesting=true # enable docker support
