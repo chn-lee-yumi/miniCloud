@@ -64,6 +64,7 @@ fi
 
 lxc profile copy vm_template $name
 lxc profile set $name cloud-init.user-data "#cloud-config
+timezone: Asia/Shanghai
 packages: ['openssh-server']
 ${mirror_config}
 users:
