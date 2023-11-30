@@ -417,7 +417,7 @@ def api_create_nat():
     protocol = param["protocol"]
     if not internet_ip or not internal_ip or not protocol:
         return "请填写完整信息！", 400
-    if not 9000 < external_port < 9999:
+    if not 9000 <= external_port <= 9999:
         return "端口号可用范围：9000-9999。请勿使用范围外的端口。", 403
     if param["protocol"] not in ["udp", "tcp"]:
         return "协议不是udp或tcp", 400
@@ -425,7 +425,7 @@ def api_create_nat():
         return "端口号不在1~65535内", 400
     query = db.session.query(NAT).filter_by(internet_ip=internet_ip, external_port=external_port).first()
     if query:
-        return "外网IP对应端口已被使用，请修改外网IP或端口", 400
+        return "外网IP对应端口已被使用，请修改端口", 400
     query = db.session.query(VirtualMachine).filter_by(ip=internal_ip, gateway=internet_ip).first()
     if not query:
         return "外网IP和内网IP与虚拟机不匹配，请检查填写的外网IP是否和虚拟机的出口IP一致", 400
