@@ -50,7 +50,12 @@
 
     var instance = getQueryVariable("instance");
     if (instance != "") {
-        var ws = new WebSocket("ws://" + window.location.host + "/console/" + instance);
+        if (window.location.protocol.split(':')[0] == "http") {
+            var scheme = "ws"
+        } else {
+            var scheme = "wss"
+        }
+        var ws = new WebSocket(scheme + "://" + window.location.host + "/console/" + instance);
         ws.onopen = function() { //当WebSocket创建成功时，触发onopen事件
             console.log("open");
         }

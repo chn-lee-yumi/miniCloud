@@ -159,6 +159,7 @@ def api_auth():
 @sock.route('/console/<instance>')
 def socket_console(ws, instance):
     """web终端，连接容器"""
+    print("console connect:", instance, session["username"])
     if "username" not in session:
         ws.send("\033[31m请先登录！\033[0m\r\n")
         ws.close()
@@ -169,6 +170,10 @@ def socket_console(ws, instance):
         ws.close()
         return
     user = db.session.query(User).filter_by(name=session["username"]).first()
+    if GDUT_MODE and not user.is_admin:
+        ws.send("\033[31m仅管理员有权限使用控制台连接。\033[0m\r\n")
+        ws.close()
+        return
     if user.tenant != "ALL" and vm.tenant not in user.tenant.split(","):
         ws.send("\033[31m你没有虚拟机所属tenant的权限。\033[0m\r\n")
         ws.close()
@@ -315,9 +320,9 @@ def api_create_vm():
     cpu_used, mem_used = get_user_cpu_mem_usage(user)
     cpu = FLAVORS[param["flavor"]]["cpu"]
     mem = FLAVORS[param["flavor"]]["mem"]
-    if cpu_used + cpu > user.cpu_quota and user.cpu_quota != -1:
+    if user.cpu_quota != -1 and cpu_used + cpu > user.cpu_quota:
         return "你的 CPU Quota 不足！", 400
-    if mem_used + mem > user.mem_quota and user.mem_quota != -1:
+    if user.mem_quota != -1 and mem_used + mem > user.mem_quota:
         return "你的 内存 Quota 不足！", 400
     # 检查用户名
     if param["enableSSH"] and session["username"] in ["root", "admin"]:
