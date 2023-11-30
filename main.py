@@ -39,6 +39,9 @@ if ENABLE_OIDC:
     DEFAULT_OIDC_TENANT = "playground"
     OIDC_ADMIN_GROUP = "/GDUTNIC/NIC-Tech/NIC-Develop"
 GDUT_MODE = True  # 广工私有云魔改版本
+# TODO: 这里的默认quota暂时写死
+DEFAULT_CPU_QUOTA = 3
+DEFAULT_MEM_QUOTA = 1024 * 6
 
 
 def login_required(func):
@@ -60,8 +63,18 @@ def login_required(func):
                 else:  # 普通用户
                     db.session.add(User(
                         name=session["username"], password="", tenant=DEFAULT_OIDC_TENANT,
-                        is_admin=False, cpu_quota=3, mem_quota=1024 * 6,  # TODO: 这里的默认quota暂时写死
+                        is_admin=False, cpu_quota=DEFAULT_CPU_QUOTA, mem_quota=DEFAULT_MEM_QUOTA,
                     ))
+                db.session.commit()
+            elif GDUT_MODE:  # 更新管理员信息
+                if OIDC_ADMIN_GROUP in session['oidc_auth_profile']["group-membership"]:
+                    user.is_admin = True
+                    user.cpu_quota = -1
+                    user.mem_quota = -1
+                else:
+                    user.is_admin = False
+                    user.cpu_quota = DEFAULT_CPU_QUOTA
+                    user.mem_quota = DEFAULT_MEM_QUOTA
                 db.session.commit()
             session["tenant"] = DEFAULT_OIDC_TENANT
             return func(*args, **kwargs)
