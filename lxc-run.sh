@@ -62,6 +62,27 @@ elif [[ $image =~ "debian" ]]; then
   mirror_config=${debian_mirror}
 fi
 
+# TODO：注意这里是执行命令接入wazuh，如果是其他用途，记得修改！
+ubuntu_cmd_config="runcmd:
+  - wget -O /run/wazuh-agent_4.7.0-1_amd64.deb https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.7.0-1_amd64.deb && sudo WAZUH_MANAGER='10.21.255.32' WAZUH_AGENT_GROUP='miniCloud' dpkg -i /run/wazuh-agent_4.7.0-1_amd64.deb
+  - systemctl daemon-reload
+  - systemctl enable wazuh-agent
+  - systemctl start wazuh-agent
+"
+
+centos_cmd_config="runcmd:
+  - curl -o /run/wazuh-agent-4.7.0-1.x86_64.rpm https://packages.wazuh.com/4.x/yum/wazuh-agent-4.7.0-1.x86_64.rpm && WAZUH_MANAGER='10.21.255.32' WAZUH_AGENT_GROUP='miniCloud' rpm -ihv /run/wazuh-agent-4.7.0-1.x86_64.rpm
+  - systemctl daemon-reload
+  - systemctl enable wazuh-agent
+  - systemctl start wazuh-agent
+"
+
+if [[ $image =~ "ubuntu" ]]; then
+  cmd_config=${ubuntu_cmd_config}
+elif [[ $image =~ "centos" ]]; then
+  cmd_config=${centos_cmd_config}
+fi
+
 lxc profile copy vm_template $name
 lxc profile set $name cloud-init.user-data "#cloud-config
 timezone: Asia/Shanghai
@@ -83,7 +104,9 @@ users:
       - $pubkey
     sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]
     shell: /bin/bash
+${cmd_config}
 "
+
 # TODO：注意这里的DNS是内网的，如果是其他用途，记得修改！
 lxc profile set $name cloud-init.network-config "version: 1
 config:
