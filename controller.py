@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import and_
 
 import net_manager
+import plugin_wazuh
 from config import *
 from database import *
 from utils import *
@@ -314,6 +315,7 @@ def delete_vm(vm_uuid: str):
     if ENABLE_JUMP_SERVER:
         plugin_jumpserver.delete_assets(vm_uuid)
         plugin_jumpserver.delete_perms(vm_uuid)
+        plugin_wazuh.delete_agent_by_ip(vm.ip)
     # 删除虚拟机
     code, _, _ = exec_cmd("""ssh %s 'sudo lxc delete --force %s; sudo lxc profile delete %s'""" % (vm.host, vm.instance_name, vm.instance_name))
     if code:

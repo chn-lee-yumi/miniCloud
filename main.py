@@ -25,6 +25,9 @@ sock = Sock(app)
 db.init_app(app)
 console_session_map = {}  # 控制台的连接字典，key为连接id，value为连接空闲时间，超过1分钟就断掉。
 
+# TODO：增加实例个数限制，CPU内存实现完全自定义，如何优雅扩容，开关机按钮，代码插件化，代码重构。
+# TODO: 整合 https://github.com/haibozhucloud/flask_sqlite_web ？
+
 # OIDC相关配置
 ENABLE_OIDC = True
 if ENABLE_OIDC:
